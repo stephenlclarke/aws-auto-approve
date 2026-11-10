@@ -163,6 +163,23 @@ final class ApplicationTests: XCTestCase {
         try pipe.fileHandleForWriting.close()
     }
 
+    func testUnknownAWSPageBecomesVisible() async throws {
+        _ = NSApplication.shared
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let view = TestWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        let app = ApprovalApplication(options: try Options(arguments: [address]), profileDirectory: root,
+                                      makeWebView: { _ in view }, terminate: { _ in })
+        app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+        XCTAssertFalse(view.window?.isVisible ?? true)
+        let deadline = ContinuousClock.now + .seconds(10)
+        while !(view.window?.isVisible ?? false) && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertTrue(view.window?.isVisible ?? false)
+        app.finish(2, message: "Fixture cleanup.")
+    }
+
     func testSessionLockRejectsConcurrentApproval() throws {
         try exercise { app, _, statuses in
             app.start(try ApprovalRequest(url: address))
