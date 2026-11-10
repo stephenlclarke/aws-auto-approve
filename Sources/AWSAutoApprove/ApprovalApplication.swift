@@ -5,7 +5,11 @@ import WebKit
 
 @MainActor
 final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate {
+    private let input: FileHandle
     private let options: Options
+    private let terminate: (Int32) -> Void
+    private let profileDirectory: URL?
+    private let makeWebView: (WKWebViewConfiguration) -> WKWebView
     private var request: ApprovalRequest?
     private var window: NSWindow?
     private var webView: WKWebView?
@@ -16,12 +20,19 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
     private var startedAt = Date()
     private var profileLock: Int32 = -1
 
-    init(options: Options) {
+    init(options: Options, input: FileHandle = .standardInput, profileDirectory: URL? = nil,
+         makeWebView: @escaping (WKWebViewConfiguration) -> WKWebView = {
+             WKWebView(frame: NSRect(x: 0, y: 0, width: 900, height: 720), configuration: $0)
+         }, terminate: @escaping (Int32) -> Void = { exit($0) }) {
         self.options = options
+        self.input = input
+        self.profileDirectory = profileDirectory
+        self.makeWebView = makeWebView
+        self.terminate = terminate
         super.init()
     }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
+    func applicationDidFinishLaunching(_ _: Notification) {
         NSApp.setActivationPolicy(.accessory)
         let menu = NSMenu()
         let item = NSMenuItem()
@@ -45,8 +56,13 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
             var stream = AuthenticationStream()
             do {
                 // Async input leaves AppKit's main run loop free while the CLI awaits approval.
-                for try await line in FileHandle.standardInput.bytes.lines {
-                    try stream.append(line + "\n")
+                var line = Data()
+                for try await byte in input.bytes {
+                    line.append(byte)
+                    guard line.count <= 65_536 else { throw ApprovalError.inputTooLarge }
+                    guard byte == 10 else { continue }
+                    try stream.append(String(decoding: line, as: UTF8.self))
+                    line.removeAll(keepingCapacity: true)
                     if let next = try stream.request() {
                         if let request, next.url != request.url {
                             finish(1, message: "Multiple requests received. Use one helper per authentication request.")
@@ -56,6 +72,7 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
                         else if next.code != nil { request = next }
                     }
                 }
+                try stream.append(String(decoding: line, as: UTF8.self))
                 stream.finish()
                 if request == nil {
                     if let next = try stream.request() { start(next) }
@@ -68,7 +85,7 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     private func acquireProfile() throws {
-        let root = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+        let root = try profileDirectory ?? FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
                                                appropriateFor: nil, create: true)
             .appendingPathComponent("AWSAutoApprove", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true,
@@ -79,7 +96,7 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
         }
     }
 
-    private func start(_ request: ApprovalRequest) {
+    func start(_ request: ApprovalRequest) {
         guard !finished else { return }
         do { try acquireProfile() }
         catch {
@@ -90,7 +107,7 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
         startedAt = Date()
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
-        let view = WKWebView(frame: NSRect(x: 0, y: 0, width: 900, height: 720), configuration: configuration)
+        let view = makeWebView(configuration)
         view.navigationDelegate = self
         let window = NSWindow(contentRect: view.frame, styleMask: [.titled, .closable, .resizable],
                               backing: .buffered, defer: false)
@@ -107,10 +124,9 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
         }
     }
 
-    private func inspectPage() {
+    func inspectPage() {
         guard !finished, !evaluating, let view = webView, !view.isLoading, let request else { return }
-        guard view.url?.scheme == "https", view.url?.host == request.url.host,
-              view.url?.path == request.url.path else {
+        guard request.allowsAutomation(at: view.url) else {
             showWindow()
             return
         }
@@ -123,7 +139,8 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
                 switch result as? String {
                 case "complete": self.finish(0, message: "AWS approval completed.")
                 case "mismatch": self.finish(1, message: "Confirmation code mismatch. No approval was made.")
-                case "clicked", "waiting": break
+                case "clicked": FileHandle.standardError.write(Data("Submitted AWS approval step.\n".utf8))
+                case "waiting": break
                 default:
                     if Date().timeIntervalSince(self.startedAt) > 2 { self.showWindow() }
                 }
@@ -140,31 +157,31 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+    func webView(_ _: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
         // Identity-provider redirects are displayed, but only the initiating AWS page gets automation.
         let scheme = navigationAction.request.url?.scheme
         decisionHandler(scheme == "https" || scheme == "about" ? .allow : .cancel)
     }
 
-    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+    func webView(_ _: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError _: Error) {
         finish(1, message: "The sign-in page could not load. Check connectivity and retry.")
     }
 
-    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+    func webViewWebContentProcessDidTerminate(_ _: WKWebView) {
         finish(1, message: "The sign-in web process stopped. Retry authentication.")
     }
 
-    func windowWillClose(_ notification: Notification) {
+    func windowWillClose(_ _: Notification) {
         finish(2, message: "Authentication cancelled.")
     }
 
-    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+    func applicationShouldTerminate(_ _: NSApplication) -> NSApplication.TerminateReply {
         finish(2, message: "Authentication cancelled.")
         return .terminateCancel
     }
 
-    private func finish(_ status: Int32, message: String) {
+    func finish(_ status: Int32, message: String) {
         guard !finished else { return }
         finished = true
         timer?.invalidate()
@@ -172,6 +189,6 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
         webView?.stopLoading()
         if profileLock >= 0 { close(profileLock) }
         FileHandle.standardError.write(Data((message + "\n").utf8))
-        exit(status)
+        terminate(status)
     }
 }

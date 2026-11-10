@@ -1,5 +1,5 @@
 "use strict";
-if (location.protocol !== "https:" || location.hostname !== settings.host) return "interactive";
+if (location.protocol !== "https:" || location.hostname !== settings.host || !settings.paths.includes(location.pathname)) return "interactive";
 const text = (document.body?.innerText || "").replace(/\s+/g, " ").trim();
 const buttons = [...document.querySelectorAll('button, input[type="submit"]')]
     .filter(button => !button.disabled && button.getAttribute("aria-disabled") !== "true"

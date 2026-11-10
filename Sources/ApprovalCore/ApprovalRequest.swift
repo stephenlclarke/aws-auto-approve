@@ -40,8 +40,25 @@ public struct ApprovalRequest: Equatable, Sendable {
         ["/platform/authorize", "/", "/authorize"].contains(path)
     }
 
+    public var approvalPaths: [String] {
+        var paths = [url.path]
+        let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if let identifier = items.first(where: { $0.name == "identitystore_id" })?.value,
+           identifier.range(of: "^d-[a-f0-9]{10}$", options: .regularExpression) != nil {
+            paths.append(["", "platform", identifier, "login"].joined(separator: "/"))
+        }
+        return paths
+    }
+
+    public func allowsAutomation(at destination: URL?) -> Bool {
+        guard let destination else { return false }
+        return destination.scheme == "https" && destination.host == url.host
+            && destination.user == nil && destination.password == nil && destination.port == nil
+            && approvalPaths.contains(destination.path)
+    }
+
     public func script() throws -> String {
-        let settings: [String: Any] = ["expectedCode": code ?? "", "host": url.host ?? ""]
+        let settings: [String: Any] = ["expectedCode": code ?? "", "host": url.host ?? "", "paths": approvalPaths]
         let data = try JSONSerialization.data(withJSONObject: settings, options: [.sortedKeys])
         let json = String(decoding: data, as: UTF8.self)
         return "(function(settings) {\n" + Self.automationSource + "\n})(" + json + ")"

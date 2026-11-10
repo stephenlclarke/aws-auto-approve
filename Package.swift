@@ -8,6 +8,6 @@ let package = Package(
     targets: [
         .target(name: "ApprovalCore", resources: [.process("Resources")]),
         .executableTarget(name: "AWSAutoApprove", dependencies: ["ApprovalCore"]),
-        .testTarget(name: "ApprovalCoreTests", dependencies: ["ApprovalCore"])
+        .testTarget(name: "ApprovalCoreTests", dependencies: ["ApprovalCore", "AWSAutoApprove"])
     ]
 )

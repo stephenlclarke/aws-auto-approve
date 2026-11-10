@@ -18,6 +18,21 @@ final class ApprovalCoreTests: XCTestCase {
         }
     }
 
+    func testIdentityStoreRedirectIsBoundToTheRequest() throws {
+        let request = try ApprovalRequest(url: address)
+        XCTAssertTrue(request.allowsAutomation(at: request.url))
+        XCTAssertFalse(request.allowsAutomation(at: nil))
+        let bound = try ApprovalRequest(url: "https://eu-west-1.signin.aws/platform/authorize?identitystore_id=d-0123456789")
+        XCTAssertTrue(bound.allowsAutomation(at: URL(string: "https://eu-west-1.signin.aws/platform/d-0123456789/login")))
+        for destination in ["https://eu-west-1.signin.aws/platform/d-9876543210/login",
+                            "http://eu-west-1.signin.aws/platform/d-0123456789/login",
+                            "https://evil.test/platform/d-0123456789/login"] {
+            XCTAssertFalse(bound.allowsAutomation(at: URL(string: destination)))
+        }
+        let invalidID = try ApprovalRequest(url: "https://eu-west-1.signin.aws/platform/authorize?identitystore_id=../evil")
+        XCTAssertEqual(invalidID.approvalPaths.count, 1)
+    }
+
     func testCodesAndSafeScriptEncoding() throws {
         let request = try ApprovalRequest(url: address, code: "ABCD-1234")
         XCTAssertTrue(try request.script().contains("ABCD-1234"))

@@ -25,7 +25,7 @@
 
 Native Swift helper that opens a locally initiated AWS SSO request, clicks **Allow**, and closes after the approval page confirms completion. It uses macOS WebKit. No third-party apps, libraries, browser extensions or external browser are required at runtime.
 
-**Initial source preview:** the native browser fixtures and input checks are automated. A successful live AWS/identity-provider login must be verified in your environment before relying on unattended use. Release and Homebrew badges describe the current source installation, not a signed downloadable release or published tap cask.
+**Source preview, live-tested on 10 November 2026:** a CMC Microsoft/DUO sign-in completed in the native window. A second request reused the saved session, submitted the AWS approval automatically, completed the AWS token exchange and closed with exit code 0. Release and Homebrew badges describe the current source installation, not a signed downloadable release or published tap cask.
 
 ## Requirements
 
@@ -80,7 +80,7 @@ Do not pipe `direnv export zsh` or credential-bearing command output into this a
 
 ## Approval boundary
 
-Only HTTPS regional `signin.aws` or legacy `device.sso.REGION.amazonaws.com` approval URLs are accepted. Automatic clicks run only at the initial request's host and path. Credentials, ports and unrelated paths in the input URL are rejected. Identity-provider redirects are interactive; HTTP and external-app navigation are blocked. A supplied confirmation code must match the page. Missing codes require manual confirmation. Ambiguous, disabled and hidden buttons are never clicked.
+Only HTTPS regional `signin.aws` or legacy `device.sso.REGION.amazonaws.com` approval URLs are accepted. Automatic clicks run only at the initial request's host and path, plus its matching `/platform/d-IDENTITYSTORE/login` redirect when the initial URL names that identity store. Credentials, ports and unrelated paths in the input URL are rejected. Identity-provider redirects are interactive; HTTP and external-app navigation are blocked. A supplied confirmation code must match the page. Missing codes require manual confirmation. Ambiguous, disabled and hidden buttons are never clicked.
 
 The input is a trust boundary: the helper cannot prove who created a pasted URL. Supply requests started by your own local authentication command. It does not automate passwords, MFA, organisation policy, other consent screens or arbitrary websites. See [security notes](SECURITY.md).
 
@@ -101,7 +101,7 @@ WebKit keeps its own persistent website data. The session lock lives in `~/Libra
 | `make sonar` | Analyse the current commit using `SONAR_TOKEN` |
 | `make clean` | Remove generated build outputs |
 
-WebKit tests require a macOS user session and permission to start WebKit processes. Fixtures exercise actual native DOM button clicks, code mismatch, missing codes, wrong origins, hidden/disabled/ambiguous controls, completion and login fallback. They do not authenticate to AWS or use real credentials. Coverage reports include all maintained Swift application sources; UI orchestration coverage can be lower than core policy coverage. Coverage is reported without exclusions for untested UI code.
+WebKit tests require a macOS user session and permission to start WebKit processes. Fixtures exercise actual native DOM button clicks, code mismatch, missing codes, wrong origins, hidden/disabled/ambiguous controls, completion and login fallback. Automated tests do not authenticate to AWS or use real credentials. The separate live test described above used a fresh device-authorisation request; returned token contents were discarded. Coverage reports include all maintained Swift application sources; UI orchestration coverage can be lower than core policy coverage. Coverage is reported without exclusions for untested UI code. The local 20-test run measured 85% Swift line coverage, including application orchestration, streaming input, timeouts and cancellation.
 
 CI builds and tests on macOS, checks installation, and publishes the app bundle as an Actions artifact. Main pushes also publish SonarQube analysis and wait for its quality gate. Dependabot checks pinned GitHub Actions daily; there are no external Swift packages. Dependency Review runs on pull requests. The README badge set follows `stephenlclarke/l337`, with release and Homebrew labels adjusted to the delivery that exists here.
 

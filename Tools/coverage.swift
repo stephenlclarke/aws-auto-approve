@@ -13,8 +13,15 @@ func execute(_ arguments: [String]) throws -> Data {
     return data
 }
 let root = FileManager.default.currentDirectoryPath
-let coveragePath = CommandLine.arguments.dropFirst().first ?? root + "/.build/debug/codecov/AWSAutoApprove.json"
-let raw = try Data(contentsOf: URL(fileURLWithPath: coveragePath))
+let debug = URL(fileURLWithPath: root + "/.build/debug").resolvingSymlinksInPath()
+let entries = FileManager.default.enumerator(at: debug, includingPropertiesForKeys: nil)!
+let binaries = entries.compactMap { $0 as? URL }.filter {
+    $0.path.contains(".xctest/Contents/MacOS/") && !$0.path.contains(".dSYM/")
+}
+guard let testBinary = binaries.first else { fatalError("Missing XCTest executable") }
+let raw = try execute(["llvm-cov", "export", testBinary.path,
+                       "-object=" + debug.appendingPathComponent("aws-auto-approve").path,
+                       "-instr-profile=" + debug.appendingPathComponent("codecov/default.profdata").path])
 let report = try JSONSerialization.jsonObject(with: raw) as! [String: Any]
 let records = report["data"] as! [[String: Any]]
 var xml = "<coverage version=\"1\">\n"

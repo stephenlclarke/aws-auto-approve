@@ -12,7 +12,7 @@ final class BrowserTests: XCTestCase {
         _ = NSApplication.shared
         view = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
         // Fixture origin is supplied explicitly; production always uses the real page location.
-        let settings = "{expectedCode: '\(code)', host: 'eu-west-1.signin.aws'}"
+        let settings = "{expectedCode: '\(code)', host: 'eu-west-1.signin.aws', paths:['/platform/authorize']}"
         let script = """
         document.body.innerHTML = \(String(data: try JSONSerialization.data(withJSONObject: html, options: .fragmentsAllowed), encoding: .utf8)!);
         window.clicks = 0;
@@ -20,8 +20,8 @@ final class BrowserTests: XCTestCase {
         function inspect(document, location, settings) {
         \(ApprovalRequest.automationSource)
         }
-        const state = inspect(document, {protocol:'https:',hostname:'\(host)'}, \(settings));
-        \(repeated ? "inspect(document, {protocol:'https:',hostname:'\(host)'}, \(settings));" : "")
+        const state = inspect(document, {pathname:'/platform/authorize',protocol:'https:',hostname:'\(host)'}, \(settings));
+        \(repeated ? "inspect(document, {pathname:'/platform/authorize',protocol:'https:',hostname:'\(host)'}, \(settings));" : "")
         state + ':' + window.clicks;
         """
         // A blank WKWebView has a document immediately and executes the real WebKit DOM code.
