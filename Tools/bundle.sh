@@ -6,9 +6,11 @@ if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
     exit 0
 fi
 if [[ $# -ne 0 ]]; then exit 2; fi
+bash Tools/build-icon.sh
 APP='dist/AWS Auto Approve.app'
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+cp .build/AppIcon.icns "$APP/Contents/Resources/"
 cp .build/release/aws-auto-approve "$APP/Contents/MacOS/"
 cp -R .build/release/AWSAutoApprove_ApprovalCore.bundle "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
@@ -18,6 +20,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>io.github.stephenlclarke.aws-auto-approve</string>
 <key>CFBundleName</key><string>AWS Auto Approve</string>
 <key>CFBundleExecutable</key><string>aws-auto-approve</string>
+<key>CFBundleIconFile</key><string>AppIcon.icns</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
 <key>CFBundleVersion</key><string>1</string>

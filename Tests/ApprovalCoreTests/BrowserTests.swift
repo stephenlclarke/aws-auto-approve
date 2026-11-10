@@ -12,23 +12,23 @@ final class BrowserTests: XCTestCase {
         _ = NSApplication.shared
         view = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
         // Fixture origin is supplied explicitly; production always uses the real page location.
-        let settings = "{expectedCode: '\(code)', host: 'eu-west-1.signin.aws', paths:['/platform/authorize']}"
+        let settings: [String: Any] = ["expectedCode": code, "host": "eu-west-1.signin.aws", "paths": ["/platform/authorize"]]
         let script = """
-        document.body.innerHTML = \(String(data: try JSONSerialization.data(withJSONObject: html, options: .fragmentsAllowed), encoding: .utf8)!);
+        document.body.innerHTML = html;
         window.clicks = 0;
         document.querySelectorAll('button,input').forEach(b => b.onclick = () => window.clicks++);
         function inspect(document, location, settings) {
         \(ApprovalRequest.automationSource)
         }
-        const state = inspect(document, {pathname:'/platform/authorize',protocol:'https:',hostname:'\(host)'}, \(settings));
-        \(repeated ? "inspect(document, {pathname:'/platform/authorize',protocol:'https:',hostname:'\(host)'}, \(settings));" : "")
-        state + ':' + window.clicks;
+        const state = inspect(document, {pathname:'/platform/authorize',protocol:'https:',hostname:host}, settings);
+        \(repeated ? "inspect(document, {pathname:'/platform/authorize',protocol:'https:',hostname:host}, settings);" : "")
+        return state + ':' + window.clicks;
         """
         // A blank WKWebView has a document immediately and executes the real WebKit DOM code.
         return try await withCheckedThrowingContinuation { continuation in
-            view.evaluateJavaScript(script) { value, error in
-                if let error { continuation.resume(throwing: error) }
-                else { continuation.resume(returning: value as? String ?? "invalid") }
+            view.callAsyncJavaScript(script, arguments: ["html": html, "host": host, "settings": settings],
+                                     in: nil, in: .page) { outcome in
+                continuation.resume(with: outcome.map { $0 as? String ?? "invalid" })
             }
         }
     }
@@ -36,6 +36,12 @@ final class BrowserTests: XCTestCase {
     func testAllowClicksOnce() async throws {
         let result = try await evaluate(html: "<p>AWS requests access</p><button>Allow</button>", repeated: true)
         XCTAssertEqual(result, "clicked:1")
+    }
+
+    func testJavaScriptInAnArgumentRemainsData() async throws {
+        let result = try await evaluate(html: "<p>AWS ABCD-1234</p><button>Confirm</button>",
+                                        code: "'; window.clicks = 99; //")
+        XCTAssertEqual(result, "mismatch:0")
     }
 
     func testCodeMatchAndMismatch() async throws {

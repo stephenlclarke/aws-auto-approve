@@ -20,8 +20,9 @@ private final class TestWebView: WKWebView {
         return nil // Isolate network requests; DOM actions have separate native WebKit tests.
     }
     override func stopLoading() { stopped = true }
-    override func evaluateJavaScript(_ javaScriptString: String,
-                                    completionHandler: (@MainActor @Sendable (Any?, (any Error)?) -> Void)? = nil) {
+    override func __callAsyncJavaScript(_ functionBody: String, arguments: [String: Any]?,
+                                     inFrame frame: WKFrameInfo? = nil, in contentWorld: WKContentWorld,
+                                     completionHandler: (@MainActor @Sendable (Any?, (any Error)?) -> Void)? = nil) {
         scripts += 1
         completionHandler?(state, scriptError)
     }
