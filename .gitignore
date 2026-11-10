@@ -1,0 +1,5 @@
+.build/
+dist/
+coverage.xml
+.scannerwork/
+.DS_Store
