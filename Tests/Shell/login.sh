@@ -14,10 +14,12 @@ if [[ "$1" == sts ]]; then
 fi
 printf 'login\n' >> "$AWS_AUTO_TEST_DIR/calls"
 printf 'fixture authentication message\n'
+if [[ ${TEST_HOLD_LOGIN:-0} == 1 ]]; then exec sleep 10; fi
 exit "${TEST_LOGIN_RESULT:-0}"
 STUB
 cat > "$TEST_ROOT/bin/aws-auto-approve" <<'STUB'
 #!/bin/bash
+if [[ ${TEST_HELPER_FAST_FAIL:-0} == 1 ]]; then exit 8; fi
 cat >/dev/null
 exit "${TEST_HELPER_RESULT:-0}"
 STUB
@@ -45,4 +47,8 @@ unset TEST_HELPER_RESULT
 export TEST_STS_RESULT=9
 check 9 fixture
 unset TEST_STS_RESULT
-printf 'AWS CLI integration: 7 checks passed.\n'
+export TEST_HOLD_LOGIN=1 TEST_HELPER_FAST_FAIL=1
+SECONDS=0
+check 1 fixture
+[[ $SECONDS -lt 5 ]]
+printf 'AWS CLI integration: 8 checks passed.\n'

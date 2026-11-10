@@ -15,6 +15,7 @@ run_login() (
     work="$(mktemp -d)" || return 1
 
     # Remove only this invocation's private FIFO and stop its own child process.
+    # shellcheck disable=SC2329 # Called by the EXIT trap.
     cleanup() {
         if [[ -n "$aws_pid" ]]; then
             kill "$aws_pid" 2>/dev/null || true
