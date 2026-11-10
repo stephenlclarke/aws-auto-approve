@@ -4,8 +4,8 @@ class AwsAutoApprove < Formula
   license "MIT"
   head "https://github.com/stephenlclarke/aws-auto-approve.git", branch: "main"
 
-  depends_on macos: :sonoma
   depends_on xcode: ["16.0", :build]
+  depends_on macos: :sonoma
 
   skip_clean "libexec/AWS Auto Approve.app"
 
