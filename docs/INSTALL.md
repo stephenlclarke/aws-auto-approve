@@ -97,6 +97,8 @@ To keep a valid AWS session and sign in only when needed:
 aws-auto-approve-login --if-needed work
 ```
 
+The wrapper prints `[v] [work] AWS session is ready` on stderr after it verifies role access, for both an existing session and a fresh sign-in. The message is green in a terminal and plain when redirected. Set `SCRIPT_COLOUR=off` or `NO_COLOR` to disable colour. It confirms access for the named profile; it does not change `AWS_PROFILE` or report a credential expiry time.
+
 This first makes a read-only STS identity request. If it succeeds, the wrapper returns without opening the app. Otherwise it signs in and checks role access again. A permission or configuration failure can still require repair; sign-in does not grant new permissions.
 
 ## Sign in with Granted

@@ -3,10 +3,28 @@
 # Start AWS CLI device sign-in and send only its authentication messages to the helper.
 set -euo pipefail
 
+STATUS_GREEN=''
+STATUS_RESET=''
+case "${SCRIPT_COLOUR:-auto}" in
+    0|false|off) ;;
+    *)
+        if [[ -t 2 && -z "${NO_COLOR+x}" && "${TERM:-}" != dumb ]]; then
+            STATUS_GREEN=$'\033[32m'
+            STATUS_RESET=$'\033[0m'
+        fi
+        ;;
+esac
+
+# Report verified profile access without exposing identity or credential data.
+report_session() {
+    printf '%s[v] [%s] AWS session is ready%s\n' "$STATUS_GREEN" "$1" "$STATUS_RESET" >&2
+}
+
 # Show the supported sign-in modes.
 usage() {
     printf 'Usage: %s [--if-needed] PROFILE\n' "$(basename "$0")"
     printf 'Sign in using AWS CLI and the native approval helper. Granted is not used.\n'
+    printf 'Report each verified profile on stderr. Set SCRIPT_COLOUR=off or NO_COLOR to disable colour.\n'
 }
 
 # Own the CLI process so cancellation can stop its pending device-code request.
@@ -53,6 +71,7 @@ main() {
     command -v aws-auto-approve >/dev/null || { printf 'Install aws-auto-approve first.\n' >&2; return 1; }
 
     if "$if_needed" && AWS_PAGER='' aws sts get-caller-identity --profile "$profile" >/dev/null 2>&1; then
+        report_session "$profile"
         return 0
     fi
 
@@ -60,7 +79,8 @@ main() {
         printf 'AWS sign-in failed. Check the profile, network and any login window.\n' >&2
         return 1
     fi
-    AWS_PAGER='' aws sts get-caller-identity --profile "$profile" >/dev/null
+    AWS_PAGER='' aws sts get-caller-identity --profile "$profile" >/dev/null || return $?
+    report_session "$profile"
 }
 
 main "$@"

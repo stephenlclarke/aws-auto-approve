@@ -41,7 +41,7 @@ brew install --HEAD stephenlclarke/tap/aws-auto-approve
 aws-auto-approve-login your-profile
 ```
 
-Use `aws-auto-approve-login --if-needed your-profile` to reuse valid credentials before starting a new sign-in.
+Use `aws-auto-approve-login --if-needed your-profile` to reuse valid credentials before starting a new sign-in. Each successful access check prints the profile name, in green when used in a terminal.
 
 - [INSTALL.md](docs/INSTALL.md): Homebrew installation, AWS CLI or Granted, zsh, direnv, upgrades and removal.
 - [BUILD.md](docs/BUILD.md): build from source, run tests and create a local app bundle.
