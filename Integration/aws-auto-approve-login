@@ -9,13 +9,35 @@ usage() {
     printf 'Sign in using AWS CLI and the native approval helper. Granted is not used.\n'
 }
 
-# Keep reading until AWS CLI exits, even when the approval helper has finished.
-approve_stream() {
-    local helper_result=0
-    aws-auto-approve --stdin || helper_result=$?
-    cat >/dev/null
-    return "$helper_result"
-}
+# Own the CLI process so cancellation can stop its pending device-code request.
+run_login() (
+    local profile="$1" work aws_pid='' helper_result=0 cli_result=0
+    work="$(mktemp -d)" || return 1
+
+    # Remove only this invocation's private FIFO and stop its own child process.
+    cleanup() {
+        if [[ -n "$aws_pid" ]]; then
+            kill "$aws_pid" 2>/dev/null || true
+            wait "$aws_pid" 2>/dev/null || true
+        fi
+        rm -rf "$work"
+    }
+    trap cleanup EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    mkfifo "$work/authentication" || return 1
+    # AWS CLI's Python output must reach the app while AWS is waiting for approval.
+    PYTHONUNBUFFERED=1 AWS_PAGER='' aws sso login --use-device-code --no-browser --profile "$profile" >"$work/authentication" 2>&1 &
+    aws_pid=$!
+    exec 3<"$work/authentication" || return 1
+    aws-auto-approve --stdin <&3 || helper_result=$?
+    if [[ "$helper_result" -ne 0 ]]; then return "$helper_result"; fi
+    # Drain the CLI's final message without closing its output pipe too early.
+    cat <&3 >/dev/null || return 1
+    wait "$aws_pid" || cli_result=$?
+    aws_pid=''
+    return "$cli_result"
+)
 
 # Validate arguments and preserve both sides of the authentication pipeline.
 main() {
@@ -33,9 +55,7 @@ main() {
         return 0
     fi
 
-    # Drain the remaining CLI output after the helper exits to avoid a broken pipe
-    # while the AWS CLI writes its final success message. pipefail checks both exits.
-    if ! AWS_PAGER='' aws sso login --use-device-code --no-browser --profile "$profile" 2>&1 | approve_stream; then
+    if ! run_login "$profile"; then
         printf 'AWS sign-in failed. Check the profile, network and any login window.\n' >&2
         return 1
     fi
