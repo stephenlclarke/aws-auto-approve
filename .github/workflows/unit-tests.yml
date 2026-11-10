@@ -1,5 +1,13 @@
 name: Unit Tests
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - README.md
+      - 'docs/**'
+      - '**/docs/**'
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -8,5 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - run: make unit-test
+      - name: Check changed paths
+        id: scope
+        uses: ./.github/actions/change-scope
+      - if: steps.scope.outputs.required == 'true'
+        run: make unit-test

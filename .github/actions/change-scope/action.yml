@@ -1,0 +1,22 @@
+name: Change scope
+description: Skip workloads for changes limited to README.md or docs folders
+outputs:
+  required:
+    description: Whether the full workload is required
+    value: ${{ steps.scope.outputs.required }}
+runs:
+  using: composite
+  steps:
+    - id: scope
+      shell: bash
+      env:
+        CI_EVENT_NAME: ${{ github.event_name }}
+        CI_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        CI_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      run: bash "$GITHUB_ACTION_PATH/check.sh" >> "$GITHUB_OUTPUT"
+    - name: Report workload decision
+      shell: bash
+      env:
+        REQUIRED: ${{ steps.scope.outputs.required }}
+      run: |
+        printf 'Full workload required: **%s** (README/docs-only changes are ignored).\n' "$REQUIRED" >> "$GITHUB_STEP_SUMMARY"

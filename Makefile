@@ -9,9 +9,11 @@ build:
 build-release:
 	$(SWIFT) build --disable-sandbox -c release -Xswiftc -warnings-as-errors
 unit-test:
+	bash Tests/Shell/change-scope.sh
 	bash Tests/Shell/login.sh
 	$(SWIFT) test --disable-sandbox --filter ApprovalCoreTests.ApprovalCoreTests
 test:
+	bash Tests/Shell/change-scope.sh
 	bash Tests/Shell/login.sh
 	$(SWIFT) test --disable-sandbox --enable-code-coverage
 coverage: test
@@ -26,9 +28,9 @@ clean:
 	$(SWIFT) package clean
 	rm -rf dist coverage.xml
 lint:
-	markdownlint '*.md'
+	markdownlint '*.md' 'docs/**/*.md'
 	actionlint
-	bash -n Tools/bundle.sh Tools/build-icon.sh Tools/install.sh Integration/aws-auto-approve-login Tests/Shell/login.sh
+	bash -n Tools/bundle.sh Tools/build-icon.sh Tools/install.sh Integration/aws-auto-approve-login Tests/Shell/login.sh Tests/Shell/change-scope.sh .github/actions/change-scope/check.sh
 	zsh -n Completions/*
 sonar:
 	sonar-scanner -Dsonar.projectVersion=$$(git rev-parse HEAD)
