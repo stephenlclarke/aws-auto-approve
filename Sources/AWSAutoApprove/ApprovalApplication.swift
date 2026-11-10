@@ -10,6 +10,8 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
     private let terminate: (Int32) -> Void
     private let profileDirectory: URL?
     private let makeWebView: (WKWebViewConfiguration) -> WKWebView
+    private var stream = AuthenticationStream()
+    private var inputLine = Data()
     private var request: ApprovalRequest?
     private var window: NSWindow?
     private var webView: WKWebView?
@@ -52,35 +54,44 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     private func readAuthenticationInput() {
-        Task { @MainActor in
-            var stream = AuthenticationStream()
-            do {
-                // Async input leaves AppKit's main run loop free while the CLI awaits approval.
-                var line = Data()
-                for try await byte in input.bytes {
-                    line.append(byte)
-                    guard line.count <= 65_536 else { throw ApprovalError.inputTooLarge }
-                    guard byte == 10 else { continue }
-                    try stream.append(String(decoding: line, as: UTF8.self))
-                    line.removeAll(keepingCapacity: true)
-                    if let next = try stream.request() {
-                        if let request, next.url != request.url {
-                            finish(1, message: "Multiple requests received. Use one helper per authentication request.")
-                            return
-                        }
-                        if request == nil { start(next) }
-                        else if next.code != nil { request = next }
-                    }
+        input.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            if data.isEmpty { handle.readabilityHandler = nil }
+            Task { @MainActor [weak self] in self?.consumeInput(data) }
+        }
+    }
+
+    private func consumeInput(_ data: Data) {
+        guard !finished else { return }
+        do {
+            for byte in data {
+                inputLine.append(byte)
+                guard inputLine.count <= 65_536 else { throw ApprovalError.inputTooLarge }
+                if byte == 10 {
+                    try stream.append(String(decoding: inputLine, as: UTF8.self))
+                    inputLine.removeAll(keepingCapacity: true)
+                    try applyStreamRequest()
                 }
-                try stream.append(String(decoding: line, as: UTF8.self))
-                stream.finish()
-                if request == nil {
-                    if let next = try stream.request() { start(next) }
-                    else { finish(1, message: "No supported AWS authorisation URL was received.") }
-                }
-            } catch {
-                finish(1, message: "Could not read authentication input.")
             }
+            if data.isEmpty {
+                try stream.append(String(decoding: inputLine, as: UTF8.self))
+                stream.finish()
+                try applyStreamRequest()
+                if request == nil { finish(1, message: "No supported AWS authorisation URL was received.") }
+            }
+        } catch {
+            finish(1, message: "Could not read authentication input.")
+        }
+    }
+
+    private func applyStreamRequest() throws {
+        guard let next = try stream.request() else { return }
+        if let request, next.url != request.url {
+            finish(1, message: "Multiple requests received. Use one helper per authentication request.")
+        } else if request == nil {
+            start(next)
+        } else if next.code != nil {
+            request = next
         }
     }
 
@@ -186,6 +197,7 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
         finished = true
         timer?.invalidate()
         deadline?.invalidate()
+        input.readabilityHandler = nil
         webView?.stopLoading()
         if profileLock >= 0 { close(profileLock) }
         FileHandle.standardError.write(Data((message + "\n").utf8))

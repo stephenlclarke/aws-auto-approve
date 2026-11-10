@@ -147,6 +147,25 @@ final class ApplicationTests: XCTestCase {
         }
     }
 
+    func testStreamStartsBeforeTheWriterCloses() async throws {
+        _ = NSApplication.shared
+        let pipe = Pipe()
+        let view = TestWebView(frame: .zero)
+        let loaded = XCTestExpectation(description: "Live URL loads before EOF")
+        view.onLoad = { loaded.fulfill() }
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let app = ApprovalApplication(options: try Options(arguments: ["--stdin"]),
+                                      input: pipe.fileHandleForReading, profileDirectory: root,
+                                      makeWebView: { _ in view }, terminate: { _ in })
+        app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+        try pipe.fileHandleForWriting.write(contentsOf: Data((address + "\n").utf8))
+        let result = await XCTWaiter.fulfillment(of: [loaded], timeout: 3)
+        try pipe.fileHandleForWriting.close()
+        XCTAssertEqual(result, .completed)
+        app.finish(2, message: "Fixture cleanup.")
+    }
+
     func testDeadlineReturnsFailure() async throws {
         let pipe = Pipe()
         var statuses: [Int32] = []
