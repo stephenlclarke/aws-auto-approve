@@ -5,7 +5,7 @@
   <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/unit-tests.yml?query=branch%3Amain"><img alt="Unit Tests" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/unit-tests.yml/badge.svg?branch=main" /></a>
   <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/codeql.yml?query=branch%3Amain"><img alt="CodeQL" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/codeql.yml/badge.svg?branch=main" /></a>
-  <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/dependency-review.yml?query=branch%3Amain"><img alt="Dependency Review" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/dependency-review.yml/badge.svg?branch=main" /></a>
+  <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/dependency-review.yml?query=event%3Apull_request"><img alt="Dependency Review" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/dependency-review.yml/badge.svg?event=pull_request" /></a>
   <a href="https://github.com/stephenlclarke/homebrew-tap/actions/workflows/homebrew.yml?query=branch%3Amain"><img alt="Homebrew tap" src="https://github.com/stephenlclarke/homebrew-tap/actions/workflows/homebrew.yml/badge.svg?branch=main" /></a>
 </p>
 
