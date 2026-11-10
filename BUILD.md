@@ -77,4 +77,6 @@ Native WebKit tests need a macOS user session and permission to start WebKit pro
 
 GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. Main pushes also publish SonarQube analysis and wait for its quality gate. The app bundle is available as an Actions artifact.
 
+CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis traces a fresh `make build`; the other languages use build-free analysis. Results appear in GitHub code scanning.
+
 Dependabot checks pinned GitHub Actions daily. Dependency Review runs on pull requests.
