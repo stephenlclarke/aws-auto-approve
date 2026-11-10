@@ -11,9 +11,12 @@ private final class TestWebView: WKWebView {
     var scriptError: Error?
     var stopped = false
     var scripts = 0
+    var probes = 0
+    var needsInteraction = true
+    var simulatedLoading = false
     var onLoad: (() -> Void)?
     override var url: URL? { address }
-    override var isLoading: Bool { false }
+    override var isLoading: Bool { simulatedLoading }
     override func load(_ request: URLRequest) -> WKNavigation? {
         address = request.url
         onLoad?()
@@ -23,6 +26,11 @@ private final class TestWebView: WKWebView {
     override func __callAsyncJavaScript(_ functionBody: String, arguments: [String: Any]?,
                                      inFrame frame: WKFrameInfo? = nil, in contentWorld: WKContentWorld,
                                      completionHandler: (@MainActor @Sendable (Any?, (any Error)?) -> Void)? = nil) {
+        if functionBody == InteractionPrompt.scriptSource {
+            probes += 1
+            completionHandler?(needsInteraction, scriptError)
+            return
+        }
         scripts += 1
         completionHandler?(state, scriptError)
     }
@@ -183,7 +191,7 @@ final class ApplicationTests: XCTestCase {
         try pipe.fileHandleForWriting.close()
     }
 
-    func testUnknownAWSPageBecomesVisible() async throws {
+    func testManualPageBecomesVisible() async throws {
         _ = NSApplication.shared
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -191,13 +199,62 @@ final class ApplicationTests: XCTestCase {
         let app = ApprovalApplication(options: try Options(arguments: [address]), profileDirectory: root,
                                       makeWebView: { _ in view }, terminate: { _ in })
         app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
-        XCTAssertFalse(view.window?.isVisible ?? true)
+        XCTAssertNil(view.window)
         let deadline = ContinuousClock.now + .seconds(10)
         while !(view.window?.isVisible ?? false) && ContinuousClock.now < deadline {
             try await Task.sleep(for: .milliseconds(20))
         }
         XCTAssertTrue(view.window?.isVisible ?? false)
         app.finish(2, message: "Fixture cleanup.")
+    }
+
+    func testAutomaticRedirectsAndApprovalNeverCreateAWindow() throws {
+        _ = NSApplication.shared
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let view = TestWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        view.needsInteraction = false
+        var statuses: [Int32] = []
+        let app = ApprovalApplication(options: try Options(arguments: [address]), profileDirectory: root,
+                                      makeWebView: { _ in view }, terminate: { statuses.append($0) })
+        app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+        XCTAssertNil(view.window)
+        view.address = URL(string: "https://login.microsoftonline.com/automatic-redirect")
+        app.inspectPage()
+        XCTAssertNil(view.window)
+        XCTAssertEqual(view.scripts, 0)
+        XCTAssertEqual(view.probes, 1)
+        app.webView(view, didStartProvisionalNavigation: nil)
+        view.address = URL(string: address)
+        view.state = "clicked"
+        app.inspectPage()
+        view.state = "complete"
+        app.inspectPage()
+        XCTAssertNil(view.window)
+        XCTAssertEqual(statuses, [0])
+    }
+
+    func testLoadingAndTransientProviderControlsStayHidden() async throws {
+        _ = NSApplication.shared
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let view = TestWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        let app = ApprovalApplication(options: try Options(arguments: [address]), profileDirectory: root,
+                                      makeWebView: { _ in view }, terminate: { _ in })
+        defer { app.finish(2, message: "Fixture cleanup.") }
+        app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
+        view.address = URL(string: "https://login.microsoftonline.com/automatic-redirect")
+        view.simulatedLoading = true
+        app.inspectPage()
+        XCTAssertEqual(view.probes, 0)
+        view.simulatedLoading = false
+        app.inspectPage()
+        XCTAssertNil(view.window)
+        view.needsInteraction = false
+        try await Task.sleep(for: .milliseconds(1200))
+        app.inspectPage()
+        XCTAssertNil(view.window)
+        XCTAssertEqual(view.scripts, 0)
     }
 
     func testSessionLockRejectsConcurrentApproval() throws {

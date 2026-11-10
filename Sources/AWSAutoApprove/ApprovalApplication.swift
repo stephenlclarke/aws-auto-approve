@@ -19,7 +19,7 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
     private var deadline: Timer?
     private var evaluating = false
     private var finished = false
-    private var startedAt = Date()
+    private var interactionPrompt = InteractionPrompt()
     private var profileLock: Int32 = -1
 
     init(options: Options, input: FileHandle = .standardInput, profileDirectory: URL? = nil,
@@ -115,18 +115,10 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
             return
         }
         self.request = request
-        startedAt = Date()
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         let view = makeWebView(configuration)
         view.navigationDelegate = self
-        let window = NSWindow(contentRect: view.frame, styleMask: [.titled, .closable, .resizable],
-                              backing: .buffered, defer: false)
-        window.title = "AWS Auto Approve - sign in if required"
-        window.contentView = view
-        window.delegate = self
-        window.center()
-        self.window = window
         webView = view
         view.load(URLRequest(url: request.url))
         if options.visible { showWindow() }
@@ -136,9 +128,10 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
     }
 
     func inspectPage() {
-        guard !finished, !evaluating, let view = webView, !view.isLoading, let request else { return }
+        guard !finished, !evaluating, let view = webView, let request else { return }
+        guard !view.isLoading else { interactionPrompt.reset(); return }
         guard request.allowsAutomation(at: view.url) else {
-            showWindow()
+            inspectInteraction(in: view)
             return
         }
         evaluating = true
@@ -146,22 +139,55 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
                                  in: nil, in: .page) { [weak self] outcome in
             guard let self, !self.finished else { return }
             self.evaluating = false
-            guard case let .success(result) = outcome else { self.showWindow(); return }
+            guard case let .success(result) = outcome else { self.inspectInteraction(in: view); return }
             switch result as? String {
             case "complete": self.finish(0, message: "AWS approval completed.")
             case "mismatch": self.finish(1, message: "Confirmation code mismatch. No approval was made.")
-            case "clicked": FileHandle.standardError.write(Data("Submitted AWS approval step.\n".utf8))
-            case "waiting": break
-            default:
-                if Date().timeIntervalSince(self.startedAt) > 2 { self.showWindow() }
+            case "clicked":
+                self.interactionPrompt.reset()
+                FileHandle.standardError.write(Data("Submitted AWS approval step.\n".utf8))
+            case "waiting": self.interactionPrompt.reset()
+            default: self.inspectInteraction(in: view)
+            }
+        }
+    }
+
+    private func inspectInteraction(in view: WKWebView) {
+        let pageURL = view.url
+        evaluating = true
+        view.callAsyncJavaScript(InteractionPrompt.scriptSource, in: nil, in: .page) { [weak self] outcome in
+            guard let self, !self.finished else { return }
+            self.evaluating = false
+            guard view.url == pageURL, !view.isLoading,
+                  case let .success(result) = outcome, let needed = result as? Bool else {
+                self.interactionPrompt.reset()
+                return
+            }
+            if self.interactionPrompt.shouldShow(url: pageURL, needsInteraction: needed,
+                                                 now: Date().timeIntervalSinceReferenceDate) {
+                self.showWindow()
             }
         }
     }
 
     private func showWindow() {
+        guard let webView else { return }
+        if window == nil {
+            let window = NSWindow(contentRect: webView.frame, styleMask: [.titled, .closable, .resizable],
+                                  backing: .buffered, defer: false)
+            window.title = "AWS Auto Approve - sign in if required"
+            window.contentView = webView
+            window.delegate = self
+            window.center()
+            self.window = window
+        }
         guard let window, !window.isVisible else { return }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func webView(_ _: WKWebView, didStartProvisionalNavigation _: WKNavigation!) {
+        interactionPrompt.reset()
     }
 
     func webView(_ _: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,

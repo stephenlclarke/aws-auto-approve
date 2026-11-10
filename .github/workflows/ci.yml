@@ -8,13 +8,16 @@ on:
       - '**/docs/**'
   pull_request:
   workflow_dispatch:
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
   quality:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -31,16 +34,37 @@ jobs:
           "$HOME/.local/bin/aws-auto-approve" --help
       - name: SonarQube analysis on main
         if: steps.scope.outputs.required == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8.4.1
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          test -n "$SONAR_TOKEN"
-          brew install sonar-scanner
-          make sonar
+        with:
+          args: -Dsonar.projectVersion=${{ github.sha }}
       - if: steps.scope.outputs.required == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: aws-auto-approve-macos
           path: |
             dist/
             coverage.xml
+  sanitizers:
+    name: ${{ matrix.name }}
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASAN
+            target: test-asan
+          - name: TSAN
+            target: test-tsan
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check changed paths
+        id: scope
+        uses: ./.github/actions/change-scope
+      - name: Run native tests under the sanitizer
+        if: steps.scope.outputs.required == 'true'
+        run: make ${{ matrix.target }}

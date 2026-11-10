@@ -2,8 +2,10 @@ SWIFT ?= $(shell xcrun --toolchain XcodeDefault --find swift)
 export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/module-cache
 export SWIFTPM_MODULECACHE_OVERRIDE := $(CURDIR)/.build/module-cache
 
-.PHONY: all build build-release test unit-test coverage bundle install run clean lint sonar
+.PHONY: all build build-release test unit-test coverage bundle install run clean lint sonar resolve test-asan test-tsan
 all: test bundle
+resolve:
+	$(SWIFT) package --disable-sandbox resolve
 build:
 	$(SWIFT) build --disable-sandbox -Xswiftc -warnings-as-errors
 build-release:
@@ -16,6 +18,10 @@ test:
 	bash Tests/Shell/change-scope.sh
 	bash Tests/Shell/login.sh
 	$(SWIFT) test --disable-sandbox --enable-code-coverage
+test-asan:
+	$(SWIFT) test --disable-sandbox --scratch-path .build/asan --sanitize address
+test-tsan:
+	$(SWIFT) test --disable-sandbox --scratch-path .build/tsan --sanitize thread
 coverage: test
 	$(SWIFT) Tools/coverage.swift
 bundle: build-release

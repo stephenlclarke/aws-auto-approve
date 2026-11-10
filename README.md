@@ -31,7 +31,7 @@
 
 AWS Auto Approve is a native Swift app for macOS that clicks **Allow** on locally initiated AWS SSO requests and closes when approval completes. It works directly with AWS CLI and uses the built-in WebKit browser.
 
-Sign in and complete DUO or other MFA when prompted. Later requests can approve automatically while the saved browser session remains valid.
+Automatic approval stays in the background. A window opens when login, DUO/MFA or another manual step needs attention. Later requests can approve silently while the saved browser session remains valid.
 
 ## Install and use
 
@@ -43,7 +43,7 @@ aws-auto-approve-login your-profile
 
 Use `aws-auto-approve-login --if-needed your-profile` to reuse valid credentials before starting a new sign-in.
 
-- [INSTALL.md](docs/INSTALL.md): Homebrew installation, zsh, AWS profiles, direnv, upgrades and removal.
+- [INSTALL.md](docs/INSTALL.md): Homebrew installation, AWS CLI or Granted, zsh, direnv, upgrades and removal.
 - [BUILD.md](docs/BUILD.md): build from source, run tests and create a local app bundle.
 - [SECURITY.md](SECURITY.md): approval boundaries and reporting vulnerabilities.
 

@@ -7,6 +7,40 @@ import XCTest
 final class BrowserTests: XCTestCase {
     private var view: WKWebView!
 
+    private func needsInteraction(html: String) async throws -> Bool {
+        _ = NSApplication.shared
+        view = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        let source = """
+        document.body.innerHTML = html;
+        document.querySelectorAll('input[type="password"]').forEach(input => {
+            Object.defineProperty(input, 'value', {get: () => {throw new Error('Credential value was read');}});
+        });
+        \(InteractionPrompt.scriptSource)
+        """
+        let result = try await view.callAsyncJavaScript(source, arguments: ["html": html],
+                                                        in: nil, contentWorld: .page)
+        return try XCTUnwrap(result as? Bool)
+    }
+
+    func testPassiveInspectionWaitsForCredentialsOrManualControls() async throws {
+        for html in ["<input type='password' role='button'>", "<input type='email'>",
+                     "<button>Use another account</button>", "<input inputmode='numeric' autocomplete='one-time-code'>",
+                     "<iframe src='https://mfa.example.invalid/frame' width='400' height='300'></iframe>"] {
+            let needed = try await needsInteraction(html: html)
+            XCTAssertTrue(needed, html)
+        }
+    }
+
+    func testPassiveInspectionIgnoresAutomaticProgressAndHiddenControls() async throws {
+        for html in ["<p>Signing you in...</p><button>Cancel</button>", "<input type='hidden'>",
+                     "<input type='password' style='display:none'>", "<button disabled>Continue</button>",
+                     "<input readonly><button aria-disabled='true'>Next</button>",
+                     "<input type='checkbox'>Remember this device", "<iframe style='display:none'></iframe>"] {
+            let needed = try await needsInteraction(html: html)
+            XCTAssertFalse(needed, html)
+        }
+    }
+
     private func evaluate(html: String, code: String = "", host: String = "eu-west-1.signin.aws",
                           repeated: Bool = false) async throws -> String {
         _ = NSApplication.shared
