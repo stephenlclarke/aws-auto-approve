@@ -4,6 +4,7 @@ import Foundation
 public struct AuthenticationStream: Sendable {
     private var pending = ""
     public private(set) var url: String?
+    private var awaitingCode = false
     public private(set) var code: String?
 
     public init() {}
@@ -33,6 +34,12 @@ public struct AuthenticationStream: Sendable {
             let candidate = String(clean[range]).trimmingCharacters(in: CharacterSet(charactersIn: "\\)"))
             if (try? ApprovalRequest(url: candidate)) != nil { url = candidate }
         }
+        let trimmed = clean.trimmingCharacters(in: .whitespacesAndNewlines)
+        if awaitingCode, trimmed.range(of: "^[A-Z0-9]{4}-[A-Z0-9]{4}$", options: .regularExpression) != nil {
+            code = trimmed
+            awaitingCode = false
+        }
+        if trimmed.lowercased().contains("enter the code:") { awaitingCode = true }
         if let range = clean.range(of: "(?:Code:|code:)\\s*([A-Z0-9]{4}-[A-Z0-9]{4})", options: .regularExpression) {
             code = String(clean[range].suffix(9))
         }

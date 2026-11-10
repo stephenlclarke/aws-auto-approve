@@ -25,45 +25,25 @@
 
 Native Swift helper that opens a locally initiated AWS SSO request, clicks **Allow**, and closes after the approval page confirms completion. It uses macOS WebKit. No third-party apps, libraries, browser extensions or external browser are required at runtime.
 
-**Source preview, live-tested on 10 November 2026:** a CMC Microsoft/DUO sign-in completed in the native window. A second request reused the saved session, submitted the AWS approval automatically, completed the AWS token exchange and closed with exit code 0. Release and Homebrew badges describe the current source installation, not a signed downloadable release or published tap cask.
+**Source preview, live-tested on 10 November 2026:** a CMC Microsoft/DUO sign-in completed in the native window. A second request reused the saved session, submitted the AWS approval automatically, completed the AWS token exchange and closed with exit code 0. Release and Homebrew badges describe the current source installation, not a signed downloadable release.
 
 ## Requirements
 
 macOS 14 or later. Building needs Xcode with Swift 6 or later. The Makefile selects Xcode's bundled compiler to keep the compiler and SDK aligned. Homebrew is optional for source installation and development checks; it is not a runtime dependency.
 
-## Install
+## Install and integrate
+
+Use the [installation guide](INSTALL.md) for Homebrew, zsh, AWS CLI profiles, direnv, upgrades and removal. The supported integration uses AWS CLI directly; Granted is not required.
 
 ```sh
-git clone https://github.com/stephenlclarke/aws-auto-approve.git
-cd aws-auto-approve
-make all
-make install
-"$HOME/.local/bin/aws-auto-approve" --help
+brew tap stephenlclarke/tap
+brew install --HEAD stephenlclarke/tap/aws-auto-approve
+aws-auto-approve-login your-profile
 ```
 
-The installer puts the app in `~/Applications/AWS Auto Approve.app` and links its executable at `~/.local/bin/aws-auto-approve`. It refuses to overwrite an existing installation. The bundle has a local ad-hoc signature. It is not Developer ID signed or notarised. No public release or Homebrew tap cask is published yet. To build through Homebrew from this checkout:
+`aws-auto-approve-login --if-needed your-profile` reuses valid AWS credentials before starting a new sign-in. It can also run from `.envrc`. Homebrew installs both commands and zsh completions.
 
-```sh
-brew install --HEAD --formula ./Formula/aws-auto-approve.rb
-```
-
-That installs the helper into Homebrew's prefix. Use `brew --prefix aws-auto-approve` to locate its app bundle for Granted configuration. Do not also run `make install` unless you deliberately want a separate user installation.
-
-## Connect Granted and direnv
-
-In `~/.granted/config`, set the existing `CustomSSOBrowserPath` key to the installed executable's absolute path:
-
-```toml
-CustomSSOBrowserPath = "/Users/YOUR_USERNAME/Applications/AWS Auto Approve.app/Contents/MacOS/aws-auto-approve"
-```
-
-Use your actual home directory. Back up the file before editing. If an `SSOBrowserLaunchTemplate` is present, it takes precedence in Granted; remove or adjust that existing override deliberately. The installer does not change your Granted configuration or `.envrc`.
-
-Granted 0.40.0 launches an unrecognised custom browser executable directly with the URL as its argument. Your existing direnv/Granted command can remain in place. The helper waits for approval while Granted keeps polling AWS for credentials. The helper's exit status proves only the approval page result; the initiating CLI must still finish successfully.
-
-On first use, sign in inside the app's window and complete MFA. Its WebKit session is separate from Safari or Chrome. Later requests can complete without showing a window while that session remains valid. Login pages and unfamiliar screens open visibly. Some identity providers prohibit embedded browser login or need a flow this app does not support; those environments require a different integration.
-
-Granted's URL-only hand-off does not include the CLI confirmation code. If AWS shows a **Confirm code** screen, this mode leaves confirmation to you. It still handles the later **Allow** screen. Use the input mode below when both the URL and code are available.
+For a local development build, use `make all` and `make install`. That separate installer puts an app in `~/Applications` and a symlink in `~/.local/bin`; it does not configure authentication. Prefer one installation route to avoid command shadowing.
 
 ## Direct and streaming input
 
@@ -74,7 +54,7 @@ aws-auto-approve --stdin
 
 `--stdin` reads live authentication messages, extracts supported URLs and `Code: ABCD-EFGH` lines, and starts processing before EOF. It handles split lines and terminal colour codes. Feed only the authentication messages for one request; avoid also opening the same request in another browser. A code arriving after navigation updates the check. If confirmation appears before the code arrives, it remains manual until the code is available.
 
-Do not pipe `direnv export zsh` or credential-bearing command output into this app. That stream controls shell exports and may contain credentials. Prefer Granted's custom-browser integration. The helper does not echo or save its input. Each invocation accepts one request and holds a session lock; concurrent requests fail clearly rather than race over the same session. Retry the initiating command after the active approval completes.
+Do not pipe `direnv export zsh` or credential-bearing command output into this app. That stream controls shell exports and may contain credentials. Prefer `aws-auto-approve-login`. The helper does not echo or save its input. Each invocation accepts one request and holds a session lock; concurrent requests fail clearly rather than race over the same session. Retry the initiating command after the active approval completes.
 
 `--visible` shows the window immediately. `--timeout SECONDS` sets a 1-900 second deadline (default 180). Closing the window cancels. Exit codes: 0 approval completed; 1 failure or timeout; 2 cancelled. The app emits only fixed status messages to stderr.
 
@@ -101,13 +81,13 @@ WebKit keeps its own persistent website data. The session lock lives in `~/Libra
 | `make sonar` | Analyse the current commit using `SONAR_TOKEN` |
 | `make clean` | Remove generated build outputs |
 
-WebKit tests require a macOS user session and permission to start WebKit processes. Fixtures exercise actual native DOM button clicks, code mismatch, missing codes, wrong origins, hidden/disabled/ambiguous controls, completion and login fallback. Automated tests do not authenticate to AWS or use real credentials. The separate live test described above used a fresh device-authorisation request; returned token contents were discarded. Coverage reports include all maintained Swift application sources; UI orchestration coverage can be lower than core policy coverage. Coverage is reported without exclusions for untested UI code. The local 22-test run measured 93% Swift line coverage, including application orchestration, streaming input, timeouts and cancellation.
+WebKit tests require a macOS user session and permission to start WebKit processes. Fixtures exercise actual native DOM button clicks, code mismatch, missing codes, wrong origins, hidden/disabled/ambiguous controls, completion and login fallback. Automated tests do not authenticate to AWS or use real credentials. The separate live test described above used a fresh device-authorisation request; returned token contents were discarded. Coverage reports include all maintained Swift application sources; UI orchestration coverage can be lower than core policy coverage. Coverage is reported without exclusions for untested UI code. The local 23-test run measured 94% Swift line coverage, including application orchestration, streaming input, timeouts and cancellation.
 
 CI builds and tests on macOS, checks installation, and publishes the app bundle as an Actions artifact. Main pushes also publish SonarQube analysis and wait for its quality gate. Dependabot checks pinned GitHub Actions daily; there are no external Swift packages. Dependency Review runs on pull requests. The README badge set follows `stephenlclarke/l337`, with release and Homebrew labels adjusted to the delivery that exists here.
 
 ## Remove or update
 
-Restore your previous Granted browser setting first. Remove the installed `aws-auto-approve` symlink and app bundle, then run `make install` for an update. The installer preserves existing installations until you move them aside. Keep browser session data if you want to retain sign-in; removing it requires deliberate WebKit data removal and does not replace server-side revocation.
+For Homebrew, follow [upgrade and removal](INSTALL.md#upgrade). For a local development installation, remove the installed `aws-auto-approve` symlink and app bundle, then run `make install` for an update. The installer preserves existing installations until you move them aside. Keep browser session data if you want to retain sign-in; removing it requires deliberate WebKit data removal and does not replace server-side revocation.
 
 ## Licence
 

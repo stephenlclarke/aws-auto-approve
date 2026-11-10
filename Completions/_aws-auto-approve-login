@@ -1,0 +1,5 @@
+#compdef aws-auto-approve-login
+_arguments \
+  '--help[Show usage]' \
+  '--if-needed[Reuse valid credentials before starting sign-in]' \
+  '1:AWS profile:($(aws configure list-profiles 2>/dev/null))'

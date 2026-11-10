@@ -1,0 +1,8 @@
+#compdef aws-auto-approve
+_arguments \
+  '--help[Show usage]' \
+  '--stdin[Read authentication messages from standard input]' \
+  '--visible[Show the sign-in window immediately]' \
+  '--timeout[Authentication deadline in seconds]:seconds:' \
+  '--code[Expected confirmation code]:code:' \
+  '1:AWS authentication URL:'

@@ -52,6 +52,13 @@ final class ApprovalCoreTests: XCTestCase {
         XCTAssertEqual(try parser.request()?.url.host, "eu-west-1.signin.aws")
     }
 
+    func testAWSCLIStandaloneCodeIsBoundToItsPrompt() throws {
+        var parser = AuthenticationStream()
+        try parser.append("ABCD-9999\nThen enter the code:\n\n    WXYZ-1234\n")
+        parser.finish()
+        XCTAssertEqual(parser.code, "WXYZ-1234")
+    }
+
     func testStreamIgnoresOtherLinksAndCapsInput() throws {
         var parser = AuthenticationStream()
         try parser.append("https://evil.test/\nordinary output\n")
