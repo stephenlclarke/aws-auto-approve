@@ -25,6 +25,7 @@ final class BrowserTests: XCTestCase {
     func testPassiveInspectionWaitsForCredentialsOrManualControls() async throws {
         for html in ["<input type='password' role='button'>", "<input type='email'>", "<input type='radio' name='mfa'>",
                      "<button>Use another account</button>", "<input inputmode='numeric' autocomplete='one-time-code'>",
+                     "<a href='#'>Sign out and sign in with a different account</a>", "<a href='#'>Continue</a>",
                      "<iframe src='https://mfa.example.invalid/frame' width='400' height='300'></iframe>"] {
             let needed = try await needsInteraction(html: html)
             XCTAssertTrue(needed, html)
@@ -32,7 +33,7 @@ final class BrowserTests: XCTestCase {
     }
 
     func testPassiveInspectionIgnoresAutomaticProgressAndHiddenControls() async throws {
-        for html in ["<p>Signing you in...</p><button>Cancel</button>", "<input type='hidden'>",
+        for html in ["<p>Signing you in...</p><button>Cancel</button><a href='#'>Privacy</a>", "<input type='hidden'>",
                      "<input type='password' style='display:none'>", "<button disabled>Continue</button>",
                      "<input readonly><button aria-disabled='true'>Next</button>",
                      "<input type='checkbox'>Remember this device", "<iframe style='display:none'></iframe>",

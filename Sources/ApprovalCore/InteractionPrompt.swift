@@ -41,13 +41,18 @@ public struct InteractionPrompt {
         return hit !== null && (hit === element || element.contains(hit));
     };
     const controls = [...document.querySelectorAll(
-        'input:not([type="hidden"]), textarea, select, button, [role="button"], [contenteditable="true"]'
+        'input:not([type="hidden"]), textarea, select, button, [role="button"], [contenteditable="true"], a[href], [role="link"]'
     )].filter(visible);
     const actionable = controls.some(element => {
         const type = (element.type || '').toLowerCase();
         if (type === 'checkbox') return element.required;
         if (element.isContentEditable || ['TEXTAREA', 'SELECT'].includes(element.tagName)
             || (element.tagName === 'INPUT' && !['submit', 'button', 'reset'].includes(type))) return true;
+        if (element.tagName === 'A' || element.getAttribute('role') === 'link') {
+            const label = (element.textContent || element.getAttribute('aria-label') || '').trim();
+            return /\\b(?:sign\\s*in|log\\s*in|another account|different account|try again)\\b/i.test(label)
+                || /^(?:allow|confirm(?: and continue)?|continue|next|retry)$/i.test(label);
+        }
         if (element.tagName === 'BUTTON' || element.getAttribute('role') === 'button'
             || ['submit', 'button'].includes(type)) {
             const label = (element.textContent || element.getAttribute('aria-label') || element.value || '').trim();

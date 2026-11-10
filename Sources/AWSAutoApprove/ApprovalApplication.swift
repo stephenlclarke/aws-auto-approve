@@ -180,6 +180,7 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
             window.delegate = self
             window.center()
             self.window = window
+            FileHandle.standardError.write(Data("AWS sign-in window opened.\n".utf8))
         }
         guard let window, !window.isVisible else { return }
         window.makeKeyAndOrderFront(nil)
