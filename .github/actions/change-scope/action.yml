@@ -18,4 +18,5 @@ runs:
       shell: bash
       env:
         REQUIRED: ${{ steps.scope.outputs.required }}
-      run: printf 'Full workload required: **%s** (README/docs-only changes are ignored).\n' "$REQUIRED" >> "$GITHUB_STEP_SUMMARY"
+      run: |
+        printf 'Full workload required: **%s** (README/docs-only changes are ignored).\n' "$REQUIRED" >> "$GITHUB_STEP_SUMMARY"
