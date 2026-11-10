@@ -11,10 +11,12 @@ private final class TestWebView: WKWebView {
     var scriptError: Error?
     var stopped = false
     var scripts = 0
+    var onLoad: (() -> Void)?
     override var url: URL? { address }
     override var isLoading: Bool { false }
     override func load(_ request: URLRequest) -> WKNavigation? {
         address = request.url
+        onLoad?()
         return nil // Isolate network requests; DOM actions have separate native WebKit tests.
     }
     override func stopLoading() { stopped = true }
@@ -115,22 +117,25 @@ final class ApplicationTests: XCTestCase {
             let pipe = Pipe()
             let view = TestWebView(frame: .zero)
             var statuses: [Int32] = []
+            let completed = XCTestExpectation(description: "Input reached its expected result")
+            let valid = content == address || content.hasSuffix("ABCD-1234\n")
+            if valid { view.onLoad = { completed.fulfill() } }
             let app = ApprovalApplication(options: try Options(arguments: ["--stdin"]),
                                           input: pipe.fileHandleForReading, profileDirectory: root,
-                                          makeWebView: { _ in view }, terminate: { statuses.append($0) })
+                                          makeWebView: { _ in view }, terminate: {
+                                              statuses.append($0)
+                                              if !valid { completed.fulfill() }
+                                          })
             app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
             // Writing on another task prevents a full pipe from blocking the AppKit run loop.
             let writer = Task.detached {
                 try pipe.fileHandleForWriting.write(contentsOf: Data(content.utf8))
                 try pipe.fileHandleForWriting.close()
             }
-            for _ in 0..<200 where statuses.isEmpty && view.address == nil {
-                try await Task.sleep(for: .milliseconds(5))
-            }
             try await writer.value
-            // Allow remaining input to deliver the second-request rejection.
-            try await Task.sleep(for: .milliseconds(30))
-            if content == address || content.hasSuffix("ABCD-1234\n") {
+            let result = await XCTWaiter.fulfillment(of: [completed], timeout: 10)
+            XCTAssertEqual(result, .completed)
+            if valid {
                 XCTAssertNotNil(view.address)
                 view.state = "complete"
                 app.inspectPage()
@@ -145,10 +150,15 @@ final class ApplicationTests: XCTestCase {
     func testDeadlineReturnsFailure() async throws {
         let pipe = Pipe()
         var statuses: [Int32] = []
+        let completed = XCTestExpectation(description: "Deadline expired")
         let app = ApprovalApplication(options: try Options(arguments: ["--stdin", "--timeout", "1"]),
-                                      input: pipe.fileHandleForReading, terminate: { statuses.append($0) })
+                                      input: pipe.fileHandleForReading, terminate: {
+                                          statuses.append($0)
+                                          completed.fulfill()
+                                      })
         app.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
-        try await Task.sleep(for: .milliseconds(1200))
+        let result = await XCTWaiter.fulfillment(of: [completed], timeout: 10)
+        XCTAssertEqual(result, .completed)
         XCTAssertEqual(statuses, [1])
         try pipe.fileHandleForWriting.close()
     }
