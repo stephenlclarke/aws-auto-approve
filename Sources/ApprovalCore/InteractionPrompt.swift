@@ -28,16 +28,24 @@ public struct InteractionPrompt {
     public static let scriptSource = """
     const visible = element => {
         const style = getComputedStyle(element);
-        return !element.disabled && !element.readOnly && element.getAttribute('aria-disabled') !== 'true'
-            && element.getAttribute('aria-hidden') !== 'true' && style.visibility !== 'hidden'
-            && style.opacity !== '0' && element.getClientRects().length > 0;
+        if (element.matches(':disabled') || element.readOnly || element.getAttribute('aria-disabled') === 'true'
+            || element.closest('[aria-hidden="true"], [inert]') || style.visibility !== 'visible') return false;
+        for (let parent = element; parent; parent = parent.parentElement) {
+            if (getComputedStyle(parent).opacity === '0') return false;
+        }
+        const rect = element.getBoundingClientRect();
+        const left = Math.max(0, rect.left), right = Math.min(innerWidth, rect.right);
+        const top = Math.max(0, rect.top), bottom = Math.min(innerHeight, rect.bottom);
+        if (right <= left || bottom <= top) return false;
+        const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2);
+        return hit !== null && (hit === element || element.contains(hit));
     };
     const controls = [...document.querySelectorAll(
         'input:not([type="hidden"]), textarea, select, button, [role="button"], [contenteditable="true"]'
     )].filter(visible);
     const actionable = controls.some(element => {
         const type = (element.type || '').toLowerCase();
-        if (['checkbox', 'radio'].includes(type)) return element.required;
+        if (type === 'checkbox') return element.required;
         if (element.isContentEditable || ['TEXTAREA', 'SELECT'].includes(element.tagName)
             || (element.tagName === 'INPUT' && !['submit', 'button', 'reset'].includes(type))) return true;
         if (element.tagName === 'BUTTON' || element.getAttribute('role') === 'button'

@@ -23,7 +23,7 @@ final class BrowserTests: XCTestCase {
     }
 
     func testPassiveInspectionWaitsForCredentialsOrManualControls() async throws {
-        for html in ["<input type='password' role='button'>", "<input type='email'>",
+        for html in ["<input type='password' role='button'>", "<input type='email'>", "<input type='radio' name='mfa'>",
                      "<button>Use another account</button>", "<input inputmode='numeric' autocomplete='one-time-code'>",
                      "<iframe src='https://mfa.example.invalid/frame' width='400' height='300'></iframe>"] {
             let needed = try await needsInteraction(html: html)
@@ -35,7 +35,13 @@ final class BrowserTests: XCTestCase {
         for html in ["<p>Signing you in...</p><button>Cancel</button>", "<input type='hidden'>",
                      "<input type='password' style='display:none'>", "<button disabled>Continue</button>",
                      "<input readonly><button aria-disabled='true'>Next</button>",
-                     "<input type='checkbox'>Remember this device", "<iframe style='display:none'></iframe>"] {
+                     "<input type='checkbox'>Remember this device", "<iframe style='display:none'></iframe>",
+                     "<input type='password' style='visibility:collapse'>",
+                     "<div style='opacity:0'><input type='password'></div>",
+                     "<fieldset disabled><input type='password'></fieldset>",
+                     "<input type='password' style='position:absolute;left:-10000px'>",
+                     "<iframe src='https://sso.example.invalid/silent' width='400' height='300' style='position:absolute;left:-10000px'></iframe>",
+                     "<input type='password'><div style='position:fixed;inset:0;background:white'>Signing in...</div>"] {
             let needed = try await needsInteraction(html: html)
             XCTAssertFalse(needed, html)
         }
