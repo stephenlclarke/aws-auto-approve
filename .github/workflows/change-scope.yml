@@ -1,0 +1,21 @@
+name: Classify changes
+on:
+  workflow_call:
+    outputs:
+      required:
+        description: Whether source or build workloads must run
+        value: ${{ jobs.classify.outputs.required }}
+permissions:
+  contents: read
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.scope.outputs.required }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        uses: ./.github/actions/change-scope

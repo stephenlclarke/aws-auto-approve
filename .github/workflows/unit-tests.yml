@@ -14,15 +14,26 @@ concurrency:
 permissions:
   contents: read
 jobs:
+  paths:
+    name: Unit path check
+    uses: ./.github/workflows/change-scope.yml
   unit-tests:
-    runs-on: macos-26
+    needs: paths
+    if: always() && !cancelled()
+    runs-on: ${{ needs.paths.outputs.required == 'true' && 'macos-26' || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate workload decision
+        env:
+          FILTER_RESULT: ${{ needs.paths.result }}
+          REQUIRED: ${{ needs.paths.outputs.required }}
+        run: |
+          test "$FILTER_RESULT" = success
+          case "$REQUIRED" in true|false) ;; *) exit 1 ;; esac
+          printf 'Full workload required: **%s**.\n' "$REQUIRED" >> "$GITHUB_STEP_SUMMARY"
+      - if: needs.paths.outputs.required == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Check changed paths
-        id: scope
-        uses: ./.github/actions/change-scope
-      - if: steps.scope.outputs.required == 'true'
+      - if: needs.paths.outputs.required == 'true'
         run: make unit-test
