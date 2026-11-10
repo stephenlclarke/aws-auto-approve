@@ -30,25 +30,58 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 check() {
     local expected="$1" result=0
     shift
-    bash "$ROOT/Integration/aws-auto-approve-login" "$@" >/dev/null 2>&1 || result=$?
+    bash "$ROOT/Integration/aws-auto-approve-login" "$@" >"$TEST_ROOT/stdout" 2>"$TEST_ROOT/stderr" || result=$?
     [[ "$result" == "$expected" ]] || { printf 'Expected %s; got %s\n' "$expected" "$result" >&2; exit 1; }
+}
+# Verify status is emitted only for profiles whose role access succeeds.
+check_status() {
+    [[ "$(cat "$TEST_ROOT/stderr")" == '[v] [fixture] AWS session is ready' ]]
+    [[ ! -s "$TEST_ROOT/stdout" ]]
+}
+
+# Failed sign-in or role access must never claim that the session is ready.
+check_no_status() {
+    if grep -Fq 'AWS session is ready' "$TEST_ROOT/stderr"; then
+        printf 'Unexpected success status after failed access.\n' >&2
+        exit 1
+    fi
 }
 check 0 --help
 check 2
 check 0 --if-needed fixture
+check_status
 [[ "$(cat "$TEST_ROOT/calls")" == sts ]]
 check 0 fixture
+check_status
 export TEST_LOGIN_RESULT=7
 check 1 fixture
+check_no_status
 unset TEST_LOGIN_RESULT
 export TEST_HELPER_RESULT=8
 check 1 fixture
+check_no_status
 unset TEST_HELPER_RESULT
 export TEST_STS_RESULT=9
 check 9 fixture
+check_no_status
 unset TEST_STS_RESULT
 export TEST_HOLD_LOGIN=1 TEST_HELPER_FAST_FAIL=1
 SECONDS=0
 check 1 fixture
+check_no_status
 [[ $SECONDS -lt 5 ]]
-printf 'AWS CLI integration: 8 checks passed.\n'
+unset TEST_HOLD_LOGIN TEST_HELPER_FAST_FAIL
+export TEST_STS_RESULT=9
+check 9 --if-needed fixture
+check_no_status
+unset TEST_STS_RESULT
+unset SCRIPT_COLOUR NO_COLOR
+export TERM=xterm-256color
+# A real terminal gets green text; either colour override removes escape codes.
+script -q "$TEST_ROOT/terminal" bash "$ROOT/Integration/aws-auto-approve-login" --if-needed fixture >/dev/null
+[[ "$(cat "$TEST_ROOT/terminal")" == *$'\033[32m[v] [fixture] AWS session is ready\033[0m'* ]]
+SCRIPT_COLOUR=off script -q "$TEST_ROOT/terminal" bash "$ROOT/Integration/aws-auto-approve-login" --if-needed fixture >/dev/null
+[[ "$(cat "$TEST_ROOT/terminal")" != *$'\033['* ]]
+NO_COLOR=1 script -q "$TEST_ROOT/terminal" bash "$ROOT/Integration/aws-auto-approve-login" --if-needed fixture >/dev/null
+[[ "$(cat "$TEST_ROOT/terminal")" != *$'\033['* ]]
+printf 'AWS CLI integration: 12 checks passed.\n'
