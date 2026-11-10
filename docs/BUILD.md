@@ -79,7 +79,9 @@ Native WebKit tests need a macOS user session and permission to start WebKit pro
 
 ## CI
 
-GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. Pushes and pull requests that change only the root `README.md` or files inside any `docs/` folder skip builds, tests, dependency review and code scanning. A shared path check still runs, and the named jobs finish successfully so branch protection does not wait for missing checks. Manual CI, unit-test and CodeQL runs, plus scheduled scans, always run in full. Unit tests run on main pushes and pull requests, without a duplicate branch-push run. Changes to workflow or filtering code run all checks. Main pushes also publish SonarQube analysis and wait for its quality gate. The app bundle is available as an Actions artifact.
+GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. Main pushes that run the full workload also publish SonarQube analysis and wait for its quality gate. The app bundle is available as an Actions artifact.
+
+Main push workflows ignore the root `README.md` and files inside any `docs/` folder. On pull requests, a shared path check skips builds, tests, dependency review and code scanning when only these paths change. The named jobs still finish successfully so branch protection does not wait for missing checks. Workflow/filter changes and mixed source/documentation changes run all checks. Manual CI, unit-test and CodeQL runs, plus scheduled scans, always run in full. Unit tests run on main pushes and pull requests, without a duplicate branch-push run.
 
 CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis pins Xcode 26.3 on macOS 26 and traces a fresh `make build`; the other languages use build-free analysis. Results appear in GitHub code scanning.
 
