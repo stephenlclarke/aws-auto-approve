@@ -14,9 +14,10 @@ func execute(_ arguments: [String]) throws -> Data {
 }
 let root = FileManager.default.currentDirectoryPath
 let debug = URL(fileURLWithPath: root + "/.build/debug").resolvingSymlinksInPath()
-let entries = FileManager.default.enumerator(at: debug, includingPropertiesForKeys: nil)!
+let entries = FileManager.default.enumerator(at: debug, includingPropertiesForKeys: [.isRegularFileKey])!
 let binaries = entries.compactMap { $0 as? URL }.filter {
-    $0.path.contains(".xctest/Contents/MacOS/") && !$0.path.contains(".dSYM/")
+    $0.path.contains(".xctest/Contents/MacOS/") && !$0.path.contains(".dSYM")
+        && (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
 }
 guard let testBinary = binaries.first else { fatalError("Missing XCTest executable") }
 let raw = try execute(["llvm-cov", "export", testBinary.path,
