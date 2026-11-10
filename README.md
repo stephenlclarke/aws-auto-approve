@@ -1,7 +1,7 @@
 # AWS Auto Approve
 
 <p>
-  <img align="left" hspace="20" src="Resources/AppIcon.png" width="147" alt="AWS Auto Approve icon: a browser window with a green approval tick" />
+  <img align="left" hspace="20" src="Resources/AppIcon.png" width="200" alt="AWS Auto Approve icon: a browser window with a green approval tick" />
   <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/ci.yml?query=branch%3Amain"><img alt="CI" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/ci.yml/badge.svg?branch=main" /></a>
   <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/unit-tests.yml?query=branch%3Amain"><img alt="Unit Tests" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/unit-tests.yml/badge.svg?branch=main" /></a>
   <a href="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/codeql.yml?query=branch%3Amain"><img alt="CodeQL" src="https://github.com/stephenlclarke/aws-auto-approve/actions/workflows/codeql.yml/badge.svg?branch=main" /></a>
