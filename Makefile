@@ -28,7 +28,7 @@ clean:
 lint:
 	markdownlint '*.md'
 	actionlint
-	bash -n Tools/bundle.sh Tools/install.sh Integration/aws-auto-approve-login Tests/Shell/login.sh
+	bash -n Tools/bundle.sh Tools/build-icon.sh Tools/install.sh Integration/aws-auto-approve-login Tests/Shell/login.sh
 	zsh -n Completions/*
 sonar:
 	sonar-scanner -Dsonar.projectVersion=$$(git rev-parse HEAD)

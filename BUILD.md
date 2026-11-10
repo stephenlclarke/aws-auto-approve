@@ -42,6 +42,10 @@ Check the built command:
 "dist/AWS Auto Approve.app/Contents/MacOS/aws-auto-approve" --help
 ```
 
+## App icon
+
+`Resources/AppIcon.png` is the source artwork used by the README and app. `Tools/build-icon.sh` uses macOS `sips` and `iconutil` to generate the standard icon sizes and `.build/AppIcon.icns`. `make bundle` installs that icon in the app's resources and declares it in `Info.plist` before signing. See [artwork provenance](Resources/ICON.md).
+
 ## Run or install a development build
 
 ```sh
@@ -77,6 +81,6 @@ Native WebKit tests need a macOS user session and permission to start WebKit pro
 
 GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. Main pushes also publish SonarQube analysis and wait for its quality gate. The app bundle is available as an Actions artifact.
 
-CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis traces a fresh `make build`; the other languages use build-free analysis. Results appear in GitHub code scanning.
+CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis pins Xcode 26.3 on macOS 26 and traces a fresh `make build`; the other languages use build-free analysis. Results appear in GitHub code scanning.
 
 Dependabot checks pinned GitHub Actions daily. Dependency Review runs on pull requests.
