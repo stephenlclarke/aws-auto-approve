@@ -5,11 +5,11 @@ AWS Auto Approve uses macOS WebKit to approve an AWS CLI sign-in request. This g
 ## Requirements
 
 - macOS Sonoma 14 or later.
-- Full Xcode 16 or later, with its licence accepted. The current Homebrew formula builds from source.
+- Full Xcode 16 or later for the current source-based Homebrew formula. See [build prerequisites](BUILD.md#requirements).
 - Homebrew and AWS CLI v2.
 - An AWS IAM Identity Center profile that your organisation permits you to use.
 
-Install Homebrew from [brew.sh](https://brew.sh/) if needed. Select your installed Xcode using `xcode-select` before building. Install AWS CLI if it is missing:
+Install Homebrew from [brew.sh](https://brew.sh/) if needed. For a manual source build or development setup, use [BUILD.md](BUILD.md). Install AWS CLI if it is missing:
 
 ```sh
 brew install awscli
@@ -26,7 +26,7 @@ aws-auto-approve --help
 aws-auto-approve-login --help
 ```
 
-If Homebrew asks you to trust this tap, review its [formula](https://github.com/stephenlclarke/homebrew-tap/blob/main/Formula/aws-auto-approve.rb) before approving it. The formula builds the native app and installs two commands plus zsh completions. It does not change shell files, AWS profiles or directory permissions. The app has a local ad-hoc signature; this is a source installation, not a notarised binary release.
+If Homebrew asks you to trust this tap, review its [formula](https://github.com/stephenlclarke/homebrew-tap/blob/main/Formula/aws-auto-approve.rb) before approving it. The formula builds the native app and installs two commands plus zsh completions. It does not change shell files, AWS profiles or directory permissions. The app has a local ad-hoc signature. A notarised binary release is not yet available.
 
 Use the fully qualified tap name in install and upgrade commands. Installing a loose local formula file is not the supported route.
 
@@ -86,7 +86,7 @@ aws sts get-caller-identity --profile work
 
 The wrapper runs `aws sso login --use-device-code --no-browser` and streams only its authentication messages to the native helper. It preserves failures from either command and verifies role access after login. Authentication URLs and codes are not echoed by the wrapper.
 
-The first request may open a window for your work account login and MFA. Use the account that belongs to your organisation. Later requests can approve automatically while the app's WebKit session remains valid. That session is separate from Safari and Chrome. Normal organisation sign-in and MFA rules still apply.
+The first request may open a window for your work account login and DUO or other MFA. Use the account that belongs to your organisation. Later requests can approve automatically while the app's WebKit session remains valid. That session is separate from Safari and Chrome. Normal organisation sign-in and MFA rules still apply.
 
 To keep a valid AWS session and sign in only when needed:
 
