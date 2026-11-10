@@ -57,11 +57,8 @@ public struct ApprovalRequest: Equatable, Sendable {
             && approvalPaths.contains(destination.path)
     }
 
-    public func script() throws -> String {
-        let settings: [String: Any] = ["expectedCode": code ?? "", "host": url.host ?? "", "paths": approvalPaths]
-        let data = try JSONSerialization.data(withJSONObject: settings, options: [.sortedKeys])
-        let json = String(decoding: data, as: UTF8.self)
-        return "(function(settings) {\n" + Self.automationSource + "\n})(" + json + ")"
+    public var scriptArguments: [String: Any] {
+        ["settings": ["expectedCode": code ?? "", "host": url.host ?? "", "paths": approvalPaths]]
     }
 
     public static var automationSource: String {

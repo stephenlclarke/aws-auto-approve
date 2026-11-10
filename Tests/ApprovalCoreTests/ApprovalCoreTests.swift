@@ -33,9 +33,12 @@ final class ApprovalCoreTests: XCTestCase {
         XCTAssertEqual(invalidID.approvalPaths.count, 1)
     }
 
-    func testCodesAndSafeScriptEncoding() throws {
+    func testCodesArePassedAsData() throws {
         let request = try ApprovalRequest(url: address, code: "ABCD-1234")
-        XCTAssertTrue(try request.script().contains("ABCD-1234"))
+        let settings = try XCTUnwrap(request.scriptArguments["settings"] as? [String: Any])
+        XCTAssertEqual(settings["expectedCode"] as? String, "ABCD-1234")
+        XCTAssertEqual(settings["host"] as? String, request.url.host)
+        XCTAssertEqual(settings["paths"] as? [String], request.approvalPaths)
         for code in ["bad", "abcd-1234", "ABCD-1234';alert(1)", "ABCD-12345"] {
             XCTAssertThrowsError(try ApprovalRequest(url: address, code: code))
         }

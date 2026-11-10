@@ -142,23 +142,19 @@ final class ApprovalApplication: NSObject, NSApplicationDelegate, NSWindowDelega
             return
         }
         evaluating = true
-        do {
-            view.evaluateJavaScript(try request.script()) { [weak self] result, error in
-                guard let self, !self.finished else { return }
-                self.evaluating = false
-                if error != nil { self.showWindow(); return }
-                switch result as? String {
-                case "complete": self.finish(0, message: "AWS approval completed.")
-                case "mismatch": self.finish(1, message: "Confirmation code mismatch. No approval was made.")
-                case "clicked": FileHandle.standardError.write(Data("Submitted AWS approval step.\n".utf8))
-                case "waiting": break
-                default:
-                    if Date().timeIntervalSince(self.startedAt) > 2 { self.showWindow() }
-                }
+        view.callAsyncJavaScript(ApprovalRequest.automationSource, arguments: request.scriptArguments,
+                                 in: nil, in: .page) { [weak self] outcome in
+            guard let self, !self.finished else { return }
+            self.evaluating = false
+            guard case let .success(result) = outcome else { self.showWindow(); return }
+            switch result as? String {
+            case "complete": self.finish(0, message: "AWS approval completed.")
+            case "mismatch": self.finish(1, message: "Confirmation code mismatch. No approval was made.")
+            case "clicked": FileHandle.standardError.write(Data("Submitted AWS approval step.\n".utf8))
+            case "waiting": break
+            default:
+                if Date().timeIntervalSince(self.startedAt) > 2 { self.showWindow() }
             }
-        } catch {
-            evaluating = false
-            finish(1, message: "Could not prepare the approval page check.")
         }
     }
 
