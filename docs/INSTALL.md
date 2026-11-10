@@ -1,6 +1,9 @@
 # Install AWS Auto Approve
 
-AWS Auto Approve uses macOS WebKit to approve an AWS CLI sign-in request. This guide uses AWS CLI v2 directly. **Granted is not required or used.** The app does not store AWS role credentials; AWS CLI manages them in its normal cache.
+AWS Auto Approve uses macOS WebKit to approve a locally initiated AWS SSO request. Choose either the AWS CLI wrapper or an existing Granted setup. **Granted is optional.** The app does not store AWS role credentials; the CLI that starts sign-in manages them.
+
+- [Without Granted](#sign-in-without-granted): use `aws-auto-approve-login` with AWS CLI v2.
+- [With Granted](#sign-in-with-granted): set the native helper as Granted's custom SSO browser.
 
 ## Requirements
 
@@ -75,7 +78,7 @@ aws configure sso --profile work
 
 Use the start URL, SSO region, account and role supplied by your organisation. `work` is only an example profile name. Do not put access keys or passwords in shell files or `.envrc`.
 
-If migrating a profile that has a `credential_process` pointing to Granted, replace that provider with a standard AWS CLI SSO profile first. Do not remove unrelated credential providers. The app cannot convert profile definitions for you.
+For the AWS CLI route only, if migrating a profile that has a `credential_process` pointing to Granted, replace that provider with a standard AWS CLI SSO profile first. Keep existing Granted profiles when using the Granted route. Do not remove unrelated credential providers. The app cannot convert profile definitions for you.
 
 ## Sign in without Granted
 
@@ -86,7 +89,7 @@ aws sts get-caller-identity --profile work
 
 The wrapper runs `aws sso login --use-device-code --no-browser` and streams only its authentication messages to the native helper. It preserves failures from either command and verifies role access after login. Authentication URLs and codes are not echoed by the wrapper.
 
-The first request may open a window for your work account login and DUO or other MFA. Use the account that belongs to your organisation. Later requests can approve automatically while the app's WebKit session remains valid. That session is separate from Safari and Chrome. Normal organisation sign-in and MFA rules still apply.
+Automatic redirects and approval run in the background. The app creates a window when stable, visible login fields, MFA frames or other manual controls need attention. The first request may therefore open a window for your work account login and DUO or other MFA. Use the account that belongs to your organisation. Later requests can approve automatically while the app's WebKit session remains valid. That session is separate from Safari and Chrome. Normal organisation sign-in and MFA rules still apply.
 
 To keep a valid AWS session and sign in only when needed:
 
@@ -96,7 +99,40 @@ aws-auto-approve-login --if-needed work
 
 This first makes a read-only STS identity request. If it succeeds, the wrapper returns without opening the app. Otherwise it signs in and checks role access again. A permission or configuration failure can still require repair; sign-in does not grant new permissions.
 
-## Use direnv for directory entry
+## Sign in with Granted
+
+Use this route if you already use Granted to assume AWS roles. Complete Granted's normal installation and shell setup using its [official guide](https://docs.granted.dev/). Keep your existing AWS profiles and credential providers. Install AWS Auto Approve through Homebrew as described above.
+
+Find the native helper's stable executable path:
+
+```sh
+command -v aws-auto-approve
+```
+
+Back up `~/.granted/config` before editing it. Set its existing top-level `CustomSSOBrowserPath` entry to the exact absolute path printed above. Put it before any TOML `[section]` headers. For a standard Apple silicon Homebrew installation:
+
+```toml
+CustomSSOBrowserPath = "/opt/homebrew/bin/aws-auto-approve"
+```
+
+For standard Intel Homebrew, the path is `/usr/local/bin/aws-auto-approve`. Use the executable path, without arguments; do not use the `.app` directory or a versioned Cellar path. Preserve the other configuration entries and your AWS console browser selection.
+
+An existing `[SSOBrowserLaunchTemplate]` overrides `CustomSSOBrowserPath`. If you want to use the custom path above, remove that SSO template block after backing it up. Preserve unrelated launch templates. See [Granted configuration](https://docs.granted.dev/configuration/) and its [browser launch behaviour](https://github.com/fwdcloudsec/granted/blob/main/pkg/idclogin/browser.go).
+
+Start your usual role command:
+
+```sh
+assume work
+aws sts get-caller-identity
+```
+
+Granted passes its authorisation URL directly to the helper. Granted may still print its own URL/code prompts; the helper does not filter its output. Do not record or share those prompts, or pipe credential output into the helper. The helper keeps automatic approval in the background and shows login or DUO/MFA when needed. Granted does not pass the expected confirmation code as `--code`, so a **Confirm code** screen requires manual confirmation.
+
+Granted owns authentication and role credentials. It launches the browser helper separately, so closing the helper does not cancel Granted's waiting login. Verify the final Granted command and role access; the AWS CLI wrapper's process-cancellation and final STS checks apply to the route without Granted.
+
+To restore Granted's normal SSO browser, clear `CustomSSOBrowserPath` or restore your saved SSO launch template. Do this before uninstalling AWS Auto Approve if Granted still points to its executable.
+
+## Use direnv without Granted for directory entry
 
 Install direnv if needed, then add its hook to `~/.zshrc` once:
 
@@ -127,7 +163,7 @@ The wrapper is a normal executable, so direnv can call it without relying on int
 
 `aws-auto-approve` also accepts a supported AWS authorisation URL with optional `--code`, or authentication messages through `--stdin`. Other tools can use those interfaces without AWS CLI, provided they initiate their own request and handle token exchange.
 
-Only recognised AWS approval pages receive automatic clicks. Code mismatches stop approval. Login, MFA and unfamiliar pages remain interactive. The helper accepts one request at a time; retry after an active request finishes. A **Confirm code** page requires the expected code or manual confirmation. Some identity providers prohibit embedded browsers.
+Only recognised AWS approval pages receive automatic clicks. Other pages receive a read-only check for visible manual controls; credential values are not read. Use `--visible` in direct helper mode to show its window immediately when diagnosing an unfamiliar sign-in page. Code mismatches stop approval. Login, MFA and unfamiliar pages remain interactive. The helper accepts one request at a time; retry after an active request finishes. A **Confirm code** page requires the expected code or manual confirmation. Some identity providers prohibit embedded browsers.
 
 Do not save real authentication URLs or codes in scripts, command history, issues or documentation. The higher-level login wrapper avoids putting the URL in a shell command.
 
@@ -157,7 +193,7 @@ To inspect an AWS CLI sign-in failure directly, run `aws sso login --use-device-
 
 ## Remove
 
-Remove or replace this tool's `.envrc` calls before uninstalling:
+Remove or replace this tool's `.envrc` calls before uninstalling. If using Granted, also clear its custom SSO browser path or restore the previous setting:
 
 ```sh
 brew uninstall stephenlclarke/tap/aws-auto-approve

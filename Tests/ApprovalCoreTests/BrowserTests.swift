@@ -7,6 +7,47 @@ import XCTest
 final class BrowserTests: XCTestCase {
     private var view: WKWebView!
 
+    private func needsInteraction(html: String) async throws -> Bool {
+        _ = NSApplication.shared
+        view = WKWebView(frame: NSRect(x: 0, y: 0, width: 600, height: 400))
+        let source = """
+        document.body.innerHTML = html;
+        document.querySelectorAll('input[type="password"]').forEach(input => {
+            Object.defineProperty(input, 'value', {get: () => {throw new Error('Credential value was read');}});
+        });
+        \(InteractionPrompt.scriptSource)
+        """
+        let result = try await view.callAsyncJavaScript(source, arguments: ["html": html],
+                                                        in: nil, contentWorld: .page)
+        return try XCTUnwrap(result as? Bool)
+    }
+
+    func testPassiveInspectionWaitsForCredentialsOrManualControls() async throws {
+        for html in ["<input type='password' role='button'>", "<input type='email'>", "<input type='radio' name='mfa'>",
+                     "<button>Use another account</button>", "<input inputmode='numeric' autocomplete='one-time-code'>",
+                     "<a href='#'>Sign out and sign in with a different account</a>", "<a href='#'>Continue</a>",
+                     "<iframe src='https://mfa.example.invalid/frame' width='400' height='300'></iframe>"] {
+            let needed = try await needsInteraction(html: html)
+            XCTAssertTrue(needed, html)
+        }
+    }
+
+    func testPassiveInspectionIgnoresAutomaticProgressAndHiddenControls() async throws {
+        for html in ["<p>Signing you in...</p><button>Cancel</button><a href='#'>Privacy</a>", "<input type='hidden'>",
+                     "<input type='password' style='display:none'>", "<button disabled>Continue</button>",
+                     "<input readonly><button aria-disabled='true'>Next</button>",
+                     "<input type='checkbox'>Remember this device", "<iframe style='display:none'></iframe>",
+                     "<input type='password' style='visibility:collapse'>",
+                     "<div style='opacity:0'><input type='password'></div>",
+                     "<fieldset disabled><input type='password'></fieldset>",
+                     "<input type='password' style='position:absolute;left:-10000px'>",
+                     "<iframe src='https://sso.example.invalid/silent' width='400' height='300' style='position:absolute;left:-10000px'></iframe>",
+                     "<input type='password'><div style='position:fixed;inset:0;background:white'>Signing in...</div>"] {
+            let needed = try await needsInteraction(html: html)
+            XCTAssertFalse(needed, html)
+        }
+    }
+
     private func evaluate(html: String, code: String = "", host: String = "eu-west-1.signin.aws",
                           repeated: Bool = false) async throws -> String {
         _ = NSApplication.shared

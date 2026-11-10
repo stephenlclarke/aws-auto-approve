@@ -4,6 +4,28 @@ import XCTest
 final class ApprovalCoreTests: XCTestCase {
     let address = "https://eu-west-1.signin.aws/platform/authorize?request_uri=example&identitystore_id=d-example"
 
+    func testInteractionPromptWaitsForAStableManualPage() {
+        var prompt = InteractionPrompt()
+        let url = URL(string: "https://login.example.invalid/")!
+        XCTAssertFalse(prompt.shouldShow(url: url, needsInteraction: false, now: 0))
+        XCTAssertFalse(prompt.shouldShow(url: url, needsInteraction: true, now: 10))
+        XCTAssertFalse(prompt.shouldShow(url: url, needsInteraction: true, now: 10.9))
+        XCTAssertTrue(prompt.shouldShow(url: url, needsInteraction: true, now: 11))
+    }
+
+    func testInteractionPromptResetsWhenControlsOrPageChange() {
+        var prompt = InteractionPrompt()
+        let first = URL(string: "https://login.example.invalid/first")!
+        let second = URL(string: "https://login.example.invalid/second")!
+        XCTAssertFalse(prompt.shouldShow(url: first, needsInteraction: true, now: 0))
+        XCTAssertFalse(prompt.shouldShow(url: second, needsInteraction: true, now: 2))
+        XCTAssertFalse(prompt.shouldShow(url: second, needsInteraction: false, now: 3))
+        XCTAssertFalse(prompt.shouldShow(url: second, needsInteraction: true, now: 4))
+        prompt.reset()
+        XCTAssertFalse(prompt.shouldShow(url: second, needsInteraction: true, now: 6))
+        XCTAssertFalse(prompt.shouldShow(url: nil, needsInteraction: true, now: 8))
+    }
+
     func testCurrentAndLegacyURLs() throws {
         XCTAssertEqual(try ApprovalRequest(url: address).url.host, "eu-west-1.signin.aws")
         XCTAssertNoThrow(try ApprovalRequest(url: "https://device.sso.eu-west-1.amazonaws.com/"))

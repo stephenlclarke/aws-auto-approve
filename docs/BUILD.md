@@ -63,6 +63,9 @@ Avoid keeping a development command ahead of the Homebrew command in `PATH`. Che
 
 | Command | Result |
 | --- | --- |
+| `make resolve` | Resolve package metadata without building application targets |
+| `make test-asan` | Full native tests with Address Sanitizer in a separate build directory |
+| `make test-tsan` | Full native tests with Thread Sanitizer in a separate build directory |
 | `make build` | Debug build, with compiler warnings treated as errors |
 | `make build-release` | Release executable |
 | `make test` | Shell wrapper checks and native tests with Swift coverage |
@@ -73,16 +76,16 @@ Avoid keeping a development command ahead of the Homebrew command in `PATH`. Che
 | `make sonar` | Analyse the current commit using `SONAR_TOKEN` |
 | `make clean` | Remove generated build outputs |
 
-Native WebKit tests need a macOS user session and permission to start WebKit processes. They check real DOM button clicks, code matching, input streaming, timeouts, cancellation and manual fallback. The shell checks use isolated command stubs and temporary Git histories to verify workflow path filtering. Automated tests do not authenticate to AWS or use real credentials.
+Native WebKit tests need a macOS user session and permission to start WebKit processes. They check real DOM button clicks, code matching, input streaming, timeouts, cancellation and manual fallback. The shell checks use isolated command stubs and temporary Git histories to verify workflow path filtering. Window tests verify that automatic redirects do not create a window and that stable manual controls do. ASAN and TSAN each run the full native suite in their own build directory; the command-line tests use the executable from that same directory. Automated tests do not authenticate to AWS or use real credentials.
 
 `make lint` needs `markdownlint-cli` and `actionlint`. `make sonar` needs `sonar-scanner` and a valid `SONAR_TOKEN`. Install these development tools through your normal package manager. Keep tokens out of shell history and source control.
 
 ## CI
 
-GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. Main pushes that run the full workload also publish SonarQube analysis and wait for its quality gate. The app bundle is available as an Actions artifact.
+GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. ASAN and TSAN run as separate parallel jobs, so sanitizer coverage does not serialise the main quality job. Actions use Node 24 runtimes. New commits cancel superseded runs for the same workflow, event and PR/ref. Main pushes that run the full workload also publish SonarQube analysis using the official scanner action and wait for its quality gate, without installing the scanner through Homebrew each time. The app bundle is available as an Actions artifact.
 
-Main push workflows ignore the root `README.md` and files inside any `docs/` folder. On pull requests, a shared path check skips builds, tests, dependency review and code scanning when only these paths change. The named jobs still finish successfully so branch protection does not wait for missing checks. Workflow/filter changes and mixed source/documentation changes run all checks. Manual CI, unit-test and CodeQL runs, plus scheduled scans, always run in full. Unit tests run on main pushes and pull requests, without a duplicate branch-push run.
+Main push workflows ignore the root `README.md` and files inside any `docs/` folder. On pull requests, a shared Ubuntu path check skips builds, tests, dependency review and code scanning when only these paths change. Documentation-only PR jobs finish on Ubuntu without reserving Mac runners. Source workloads use their normal Mac/Linux runners. Every dependent job verifies that classification succeeded and returned a valid decision, so a path-check failure blocks the required checks. The named jobs still finish successfully so branch protection does not wait for missing checks. Filtering uses the whole pull request, so a later documentation-only commit cannot skip checks while that PR still contains source changes. An invalid Git comparison fails the job. Workflow/filter changes and mixed source/documentation changes run all checks. Manual CI, unit-test and CodeQL runs, plus scheduled scans, always run in full. Unit tests run on main pushes and pull requests, without a duplicate branch-push run.
 
-CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis pins Xcode 26.3 on macOS 26 and traces a fresh `make build`; the other languages use build-free analysis. Results appear in GitHub code scanning.
+CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis pins Xcode 26.3 on the Apple Silicon `macos-26` runner. CodeQL's build tracer currently uses Rosetta, so CI prepares package metadata under `arch -x86_64` to match the traced build's manifest cache. This avoids relying on an Intel runner. App, ASAN and TSAN jobs remain native Apple Silicon builds. See [CodeQL platform requirements](https://codeql.github.com/docs/codeql-overview/system-requirements/). Before starting the tracer, it resolves the compiler path and package metadata with `make resolve`; this does not compile application targets. It then traces a fresh `make build`, without restoring compiled app objects from a cache; the other languages use build-free analysis. Results appear in GitHub code scanning.
 
 Dependabot checks pinned GitHub Actions daily. Dependency Review runs on pull requests.

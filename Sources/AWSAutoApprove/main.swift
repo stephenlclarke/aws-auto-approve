@@ -7,6 +7,7 @@ Usage: aws-auto-approve [--visible] [--timeout SECONDS] [--code ABCD-EFGH] URL
 
 Uses macOS WebKit to approve a locally initiated AWS SSO request.
 Login and MFA appear in a native window when required. Session cookies persist.
+Automatic approval stays in the background. --visible shows the window immediately.
 --stdin accepts authentication messages, one request per invocation. Do not pipe
 'direnv export zsh' or credential output. Direct URL mode is suitable for Granted's
 CustomSSOBrowserPath. Confirmation-code screens need --code or manual confirmation.
