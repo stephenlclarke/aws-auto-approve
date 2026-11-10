@@ -43,8 +43,8 @@ aws-auto-approve-login your-profile
 
 Use `aws-auto-approve-login --if-needed your-profile` to reuse valid credentials before starting a new sign-in.
 
-- [INSTALL.md](INSTALL.md): Homebrew installation, zsh, AWS profiles, direnv, upgrades and removal.
-- [BUILD.md](BUILD.md): build from source, run tests and create a local app bundle.
+- [INSTALL.md](docs/INSTALL.md): Homebrew installation, zsh, AWS profiles, direnv, upgrades and removal.
+- [BUILD.md](docs/BUILD.md): build from source, run tests and create a local app bundle.
 - [SECURITY.md](SECURITY.md): approval boundaries and reporting vulnerabilities.
 
 Requires macOS 14 or later. The current Homebrew formula builds from source and needs Xcode 16 or later. Builds have a local ad-hoc signature; a notarised installer is not yet available.

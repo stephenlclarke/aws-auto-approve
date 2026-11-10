@@ -4,7 +4,7 @@
 
 - Keep the app native Swift/WebKit, using Apple frameworks without external browser or automation-app dependencies.
 - Keep the sign-in integration based on AWS CLI. Do not introduce a Granted dependency.
-- Keep the README brief. Use [BUILD.md](BUILD.md) for development and [INSTALL.md](INSTALL.md) for user setup.
+- Keep the README brief. Use [BUILD.md](docs/BUILD.md) for development and [INSTALL.md](docs/INSTALL.md) for user setup.
 - Keep examples organisation-neutral. DUO and other MFA remain supported interactive steps.
 
 ## Authentication boundaries

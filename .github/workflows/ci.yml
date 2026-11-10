@@ -14,21 +14,27 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Check changed paths
+        id: scope
+        uses: ./.github/actions/change-scope
       - name: Native tests, coverage and app bundle
+        if: steps.scope.outputs.required == 'true'
         run: make coverage bundle
       - name: Check installed bundle entry point
+        if: steps.scope.outputs.required == 'true'
         run: |
           make install
           "$HOME/.local/bin/aws-auto-approve" --help
       - name: SonarQube analysis on main
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: steps.scope.outputs.required == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
           test -n "$SONAR_TOKEN"
           brew install sonar-scanner
           make sonar
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - if: steps.scope.outputs.required == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: aws-auto-approve-macos
           path: |

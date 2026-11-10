@@ -44,7 +44,7 @@ Check the built command:
 
 ## App icon
 
-`Resources/AppIcon.png` is the source artwork used by the README and app. `Tools/build-icon.sh` uses macOS `sips` and `iconutil` to generate the standard icon sizes and `.build/AppIcon.icns`. `make bundle` installs that icon in the app's resources and declares it in `Info.plist` before signing. See [artwork provenance](Resources/ICON.md).
+`Resources/AppIcon.png` is the source artwork used by the README and app. `Tools/build-icon.sh` uses macOS `sips` and `iconutil` to generate the standard icon sizes and `.build/AppIcon.icns`. `make bundle` installs that icon in the app's resources and declares it in `Info.plist` before signing. See [artwork provenance](../Resources/ICON.md).
 
 ## Run or install a development build
 
@@ -73,13 +73,13 @@ Avoid keeping a development command ahead of the Homebrew command in `PATH`. Che
 | `make sonar` | Analyse the current commit using `SONAR_TOKEN` |
 | `make clean` | Remove generated build outputs |
 
-Native WebKit tests need a macOS user session and permission to start WebKit processes. They check real DOM button clicks, code matching, input streaming, timeouts, cancellation and manual fallback. The shell checks use isolated command stubs. Automated tests do not authenticate to AWS or use real credentials.
+Native WebKit tests need a macOS user session and permission to start WebKit processes. They check real DOM button clicks, code matching, input streaming, timeouts, cancellation and manual fallback. The shell checks use isolated command stubs and temporary Git histories to verify workflow path filtering. Automated tests do not authenticate to AWS or use real credentials.
 
 `make lint` needs `markdownlint-cli` and `actionlint`. `make sonar` needs `sonar-scanner` and a valid `SONAR_TOKEN`. Install these development tools through your normal package manager. Keep tokens out of shell history and source control.
 
 ## CI
 
-GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. Main pushes also publish SonarQube analysis and wait for its quality gate. The app bundle is available as an Actions artifact.
+GitHub CI runs the native and shell tests, produces coverage, builds the app and checks installation. Pushes and pull requests that change only the root `README.md` or files inside any `docs/` folder skip builds, tests, dependency review and code scanning. A shared path check still runs, and the named jobs finish successfully so branch protection does not wait for missing checks. Manual CI, unit-test and CodeQL runs, plus scheduled scans, always run in full. Unit tests run on main pushes and pull requests, without a duplicate branch-push run. Changes to workflow or filtering code run all checks. Main pushes also publish SonarQube analysis and wait for its quality gate. The app bundle is available as an Actions artifact.
 
 CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis pins Xcode 26.3 on macOS 26 and traces a fresh `make build`; the other languages use build-free analysis. Results appear in GitHub code scanning.
 

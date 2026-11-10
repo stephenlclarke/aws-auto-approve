@@ -40,22 +40,28 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          fetch-depth: 0
           persist-credentials: false
+      - name: Check changed paths
+        id: scope
+        uses: ./.github/actions/change-scope
       - name: Select CodeQL-compatible Xcode
-        if: matrix.language == 'swift'
+        if: steps.scope.outputs.required == 'true' && matrix.language == 'swift'
         run: |
           test -d /Applications/Xcode_26.3.app/Contents/Developer
           printf '%s\n' 'DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer' >> "$GITHUB_ENV"
       - name: Initialise CodeQL
+        if: steps.scope.outputs.required == 'true'
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
           queries: security-extended
       - name: Build Swift for analysis
-        if: matrix.language == 'swift'
+        if: steps.scope.outputs.required == 'true' && matrix.language == 'swift'
         run: make build
       - name: Analyse and upload results
+        if: steps.scope.outputs.required == 'true'
         uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         with:
           category: /language:${{ matrix.language }}
