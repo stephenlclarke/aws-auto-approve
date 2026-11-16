@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # USAGE: release-ready.sh SHA - report whether the current main commit passed release gates.
 set -euo pipefail
+if [[ "${1:-}" == -h || "${1:-}" == --help ]]; then
+    printf 'Usage: %s SHA\nRequire all current-main release checks to pass.\n' "$(basename "${BASH_SOURCE[0]:-$0}")"
+    exit 0
+fi
 SHA="${1:-}"
-[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
+[[ $# == 1 && "$SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
 : "${GITHUB_REPOSITORY:?}"
 MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)"
 if [[ "$MAIN_SHA" != "$SHA" ]]; then printf 'ready=false\n'; exit 0; fi
