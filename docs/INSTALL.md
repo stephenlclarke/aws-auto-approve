@@ -108,7 +108,7 @@ aws-auto-approve --help
 aws-auto-approve-login --help
 ```
 
-If Homebrew asks you to trust this tap, review its [formula](https://github.com/stephenlclarke/homebrew-tap/blob/main/Formula/aws-auto-approve.rb) before approving it. The formula installs the matching versioned Apple Silicon or Intel app package, verified by SHA-256, plus two commands and zsh completions. It does not change shell files, AWS profiles or directory permissions. The prebuilt app has an ad-hoc signature; it is not Developer ID signed or notarised.
+If Homebrew asks you to trust this tap, review its [formula](https://github.com/stephenlclarke/homebrew-tap/blob/main/Formula/aws-auto-approve.rb) before approving it. The formula installs the matching versioned Apple Silicon or Intel app package, verified by SHA-256, plus two commands and zsh completions. It does not change shell files, AWS profiles or directory permissions. Releases from 0.2.0 require Developer ID signing, Apple notarisation and an attached ticket. Earlier 0.1.x packages have ad-hoc signatures. Homebrew tests the installed signature and Gatekeeper assessment.
 
 Use the fully qualified tap name in install and upgrade commands. Installing a loose local formula file is not the supported route.
 

@@ -31,6 +31,7 @@ main() {
     local version="${1:-}" arch archive minimum
     if [[ "$version" == --help || "$version" == -h ]]; then usage; return; fi
     if [[ $# != 1 || ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then usage >&2; return 2; fi
+    bash Tools/notarise.sh --check
     mkdir -p dist/release
     STAGE_DIR="$(mktemp -d)"
     trap cleanup EXIT
@@ -40,11 +41,17 @@ main() {
         minimum="$(otool -l 'dist/AWS Auto Approve.app/Contents/MacOS/aws-auto-approve' | awk '/LC_BUILD_VERSION/{p=1} p && /minos/ {print $2;exit}')"
         [[ "$minimum" == 14.0 ]]
         codesign --verify --deep --strict 'dist/AWS Auto Approve.app'
+        bash Tools/notarise.sh 'dist/AWS Auto Approve.app'
         rm -rf "$STAGE_DIR/package"
         mkdir "$STAGE_DIR/package"
         cp -R 'dist/AWS Auto Approve.app' Integration Completions LICENSE "$STAGE_DIR/package/"
         archive="aws-auto-approve-$version-macos-$arch.tar.gz"
         COPYFILE_DISABLE=1 tar -czf "dist/release/$archive" -C "$STAGE_DIR/package" .
+        mkdir "$STAGE_DIR/verify"
+        tar -xzf "dist/release/$archive" -C "$STAGE_DIR/verify"
+        xcrun stapler validate "$STAGE_DIR/verify/AWS Auto Approve.app"
+        codesign --verify --deep --strict "$STAGE_DIR/verify/AWS Auto Approve.app"
+        rm -rf "$STAGE_DIR/verify"
     done
     ruby Tools/render-formula.rb "$version" >dist/release/aws-auto-approve.rb
     ruby -c dist/release/aws-auto-approve.rb

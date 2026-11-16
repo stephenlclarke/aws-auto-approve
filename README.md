@@ -46,7 +46,7 @@ Use `aws-auto-approve-login --if-needed your-profile` to reuse valid credentials
 - [BUILD.md](docs/BUILD.md): build from source, run tests and create a local app bundle.
 - [SECURITY.md](SECURITY.md): approval boundaries and reporting vulnerabilities.
 
-Requires macOS 14 or later. Homebrew installs a prebuilt Apple Silicon or Intel release; Xcode is not needed. The app has an ad-hoc signature and is not notarised.
+Requires macOS 14 or later. Homebrew installs a prebuilt Apple Silicon or Intel release; Xcode is not needed. Releases from 0.2.0 require Developer ID signing and Apple notarisation. Earlier 0.1.x packages have ad-hoc signatures.
 
 ## Licence
 
