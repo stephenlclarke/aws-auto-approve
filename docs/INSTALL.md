@@ -21,7 +21,7 @@ aws --version
 
 ## Install and configure with Codex
 
-Copy the whole Markdown block below into Codex on the Mac you want to configure. Codex must first ask whether to use Granted, then install the selected route and its dependencies. You do not need to fill in placeholders before pasting. Apple sign-in, administrator approval, licence acceptance and AWS login/MFA can still need your input.
+Copy the whole Markdown block below into Codex on the Mac you want to configure. Codex first checks for Granted and offers it as the default when it is installed and working. Otherwise, it recommends the route without Granted. Confirm that suggestion or choose the other route; Codex then configures it and installs any missing dependencies. You do not need to fill in placeholders before pasting. Apple sign-in, administrator approval, licence acceptance and AWS login/MFA can still need your input.
 
 The reference Mac uses Homebrew zsh as a login shell in Ghostty, with Starship initialised before the direnv hook. Local, Git-ignored `.envrc` files check the required AWS profiles in order, then export the final `AWS_PROFILE`. Starship displays that active profile; the login wrapper reports each verified profile. The prompt adapts this pattern to the destination Mac without copying private profile names, accounts or credentials.
 
@@ -34,15 +34,22 @@ Read the current installation guide and build requirements first:
 https://github.com/stephenlclarke/aws-auto-approve/blob/main/docs/INSTALL.md
 https://github.com/stephenlclarke/aws-auto-approve/blob/main/docs/BUILD.md
 
-1. Before making changes, ask: "Do you want AWS Auto Approve installed
-   with Granted or without Granted?" Explain that without Granted uses
-   AWS CLI directly, while with Granted adds its role-switching commands
-   and uses AWS Auto Approve as its SSO browser. Wait for my choice; do
-   not infer it from software already installed. Also ask which project
-   directories and AWS profiles to configure, their warm-up order and
-   the final active profile for each directory. Offer existing profile
-   names without exposing their credentials. Ask for missing SSO setup
-   details only if a suitable profile does not exist.
+1. Before making changes, detect whether Granted is installed and works.
+   Check command resolution in the actual zsh login environment, existing
+   Homebrew installations and Granted's version output. Do not assume a
+   missing PATH entry means it is absent or install a duplicate copy.
+   If Granted works, ask: "Granted is installed. Use it with AWS Auto
+   Approve (default), or configure without Granted?" Otherwise offer
+   "Without Granted (default)" and "Install and use Granted". If it is
+   present but broken, explain the problem and offer repair as part of
+   the Granted option. Explain that without Granted uses AWS CLI directly;
+   with Granted keeps its role-switching commands and uses AWS Auto
+   Approve as its SSO browser. Wait for me to confirm or switch the
+   suggested route before configuring it; silence is not confirmation.
+   Also ask which project directories and AWS profiles to configure,
+   their warm-up order and the final active profile for each directory.
+   Offer existing profile names without exposing their credentials. Ask
+   for missing SSO setup details only if a suitable profile does not exist.
 
 2. Inspect macOS, CPU architecture, Homebrew, selected Xcode/Swift,
    AWS CLI, zsh, Ghostty, Starship and direnv. Inspect the effective
