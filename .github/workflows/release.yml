@@ -40,6 +40,7 @@ jobs:
     needs: ready
     if: needs.ready.outputs.ready == 'true'
     runs-on: macos-26
+    environment: release-signing
     permissions:
       contents: write
       checks: read

@@ -116,7 +116,7 @@ The Homebrew tap checks for a new release hourly, verifies the released formula 
 
 Keep a private backup of the Developer ID Application certificate and its matching private key. Downloading the public `.cer` from Apple does not restore a missing private key. Do not revoke a working certificate used by other applications.
 
-The protected release job uses these repository Actions secrets:
+The protected release job uses these Actions secrets in the repository's `release-signing` environment. Restrict that environment's deployment branches to protected branches; `main` is the protected release branch. No manual environment approval is required for automatic releases.
 
 | Secret | Value |
 | --- | --- |
@@ -124,7 +124,7 @@ The protected release job uses these repository Actions secrets:
 | `MACOS_CERTIFICATE_PASSWORD` | Password protecting that export |
 | `APPLE_NOTARY_KEY_P8` | Private contents of an App Store Connect team API key |
 
-Set repository variables `APPLE_TEAM_ID`, `APPLE_NOTARY_KEY_ID` and `APPLE_NOTARY_ISSUER_ID` to the corresponding identifiers. Use a team API key authorised to submit notarisation requests. Supply secrets privately through `gh secret set` or GitHub settings; never put private keys, passwords or decoded exports in source files or logs.
+Set repository variables `APPLE_TEAM_ID`, `APPLE_NOTARY_KEY_ID` and `APPLE_NOTARY_ISSUER_ID` to the corresponding identifiers. Use a team API key authorised to submit notarisation requests. Supply secrets privately through `gh secret set --env release-signing` or GitHub environment settings; never put private keys, passwords or decoded exports in source files or logs.
 
 The job imports one Developer ID identity into an isolated temporary Keychain. It selects that Keychain explicitly for signing, preserves the runner's existing search list and removes the temporary Keychain and private files in an always-run cleanup step. Pull-request workflows receive no signing secrets.
 
