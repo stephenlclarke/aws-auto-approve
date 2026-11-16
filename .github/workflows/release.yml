@@ -1,0 +1,63 @@
+name: Release
+on:
+  workflow_run:
+    workflows: [CI, Unit Tests, CodeQL, Release Tools]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  ready:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_repository.full_name == github.repository &&
+       github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      ready: ${{ steps.gate.outputs.ready }}
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: gate
+        name: Require the tested current main commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          bash Tools/release-ready.sh "$EVENT_SHA" >> "$GITHUB_OUTPUT"
+          printf 'sha=%s\n' "$EVENT_SHA" >> "$GITHUB_OUTPUT"
+  publish:
+    needs: ready
+    if: needs.ready.outputs.ready == 'true'
+    runs-on: macos-26
+    permissions:
+      contents: write
+      checks: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.ready.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install locked release tools
+        run: npm ci --ignore-scripts
+      - name: Select the tested Xcode toolchain
+        run: printf '%s\n' 'DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer' >> "$GITHUB_ENV"
+      - name: Version, package and publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run release

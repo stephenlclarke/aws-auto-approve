@@ -1,17 +1,27 @@
 class AwsAutoApprove < Formula
   desc "Native WebKit helper for locally initiated AWS SSO approval"
   homepage "https://github.com/stephenlclarke/aws-auto-approve"
+  version "@VERSION@"
   license "MIT"
-  head "https://github.com/stephenlclarke/aws-auto-approve.git", branch: "main"
 
-  depends_on xcode: ["16.0", :build]
+  on_arm do
+    url "https://github.com/stephenlclarke/aws-auto-approve/releases/download/v@VERSION@/aws-auto-approve-@VERSION@-macos-arm64.tar.gz"
+    sha256 "@ARM64_SHA256@"
+  end
+
+  on_intel do
+    url "https://github.com/stephenlclarke/aws-auto-approve/releases/download/v@VERSION@/aws-auto-approve-@VERSION@-macos-x86_64.tar.gz"
+    sha256 "@X86_64_SHA256@"
+  end
+
+  depends_on :macos
   depends_on macos: :sonoma
+  depends_on "awscli"
 
   skip_clean "libexec/AWS Auto Approve.app"
 
   def install
-    system "make", "bundle"
-    libexec.install "dist/AWS Auto Approve.app"
+    libexec.install "AWS Auto Approve.app"
     bin.install_symlink libexec/"AWS Auto Approve.app/Contents/MacOS/aws-auto-approve"
     bin.install "Integration/aws-auto-approve-login"
     zsh_completion.install "Completions/_aws-auto-approve", "Completions/_aws-auto-approve-login"

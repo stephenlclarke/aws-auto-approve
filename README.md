@@ -27,7 +27,6 @@
   <img alt="Repo Visitors" src="https://visitor-badge.laobi.icu/badge?page_id=stephenlclarke.aws-auto-approve" />
 </p>
 <br clear="left" />
-<br>
 
 AWS Auto Approve is a native Swift app for macOS that clicks **Allow** on locally initiated AWS SSO requests and closes when approval completes. It works directly with AWS CLI and uses the built-in WebKit browser.
 
@@ -37,17 +36,17 @@ Automatic approval stays in the background. A window opens when login, DUO/MFA o
 
 ```sh
 brew tap stephenlclarke/tap
-brew install --HEAD stephenlclarke/tap/aws-auto-approve
+brew install stephenlclarke/tap/aws-auto-approve
 aws-auto-approve-login your-profile
 ```
 
 Use `aws-auto-approve-login --if-needed your-profile` to reuse valid credentials before starting a new sign-in. Each successful access check prints the profile name, in green when used in a terminal.
 
-- [INSTALL.md](docs/INSTALL.md): Homebrew installation, AWS CLI or Granted, zsh, direnv, upgrades and removal.
+- [INSTALL.md](docs/INSTALL.md): automatic setup with `configure.sh`, Homebrew, AWS CLI or Granted, zsh and direnv.
 - [BUILD.md](docs/BUILD.md): build from source, run tests and create a local app bundle.
 - [SECURITY.md](SECURITY.md): approval boundaries and reporting vulnerabilities.
 
-Requires macOS 14 or later. The current Homebrew formula builds from source and needs Xcode 16 or later. Builds have a local ad-hoc signature; a notarised installer is not yet available.
+Requires macOS 14 or later. Homebrew installs a prebuilt Apple Silicon or Intel release; Xcode is not needed. The app has an ad-hoc signature and is not notarised.
 
 ## Licence
 

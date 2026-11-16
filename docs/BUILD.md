@@ -68,6 +68,7 @@ Avoid keeping a development command ahead of the Homebrew command in `PATH`. Che
 | `make test-tsan` | Full native tests with Thread Sanitizer in a separate build directory |
 | `make build` | Debug build, with compiler warnings treated as errors |
 | `make build-release` | Release executable |
+| `make configure ARGS='--dry-run'` | Preview the guided Mac setup without installing or changing configuration |
 | `make test` | Shell wrapper checks and native tests with Swift coverage |
 | `make unit-test` | Shell wrapper checks and isolated core tests |
 | `make coverage` | Full tests and `coverage.xml` for SonarQube |
@@ -78,7 +79,9 @@ Avoid keeping a development command ahead of the Homebrew command in `PATH`. Che
 
 Native WebKit tests need a macOS user session and permission to start WebKit processes. They check real DOM button clicks, code matching, input streaming, timeouts, cancellation and manual fallback. The shell checks use isolated command stubs and temporary Git histories to verify workflow path filtering. Window tests verify that automatic redirects do not create a window and that stable manual controls do. ASAN and TSAN each run the full native suite in their own build directory; the command-line tests use the executable from that same directory. Automated tests do not authenticate to AWS or use real credentials.
 
-`make lint` needs `markdownlint-cli` and `actionlint`. `make sonar` needs `sonar-scanner` and a valid `SONAR_TOKEN`. Install these development tools through your normal package manager. Keep tokens out of shell history and source control.
+`make lint` needs `markdownlint-cli`, `actionlint` and `shellcheck`. `make sonar` needs `sonar-scanner` and a valid `SONAR_TOKEN`. Install these development tools through your normal package manager. Keep tokens out of shell history and source control.
+
+`Tests/Shell/configure.sh` runs the configure script and its file-editing functions in temporary homes, with installers and authentication commands replaced by stubs. It checks route defaults, profile conversion, shared-session preservation, managed blocks, backups, symlinks, project integration and failure handling. It does not install packages or use live credentials. The tests run through `make test` and `make unit-test`.
 
 ## CI
 
@@ -96,3 +99,15 @@ The named PR checks remain available for branch protection. Each dependent job v
 CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis pins Xcode 26.3 on the Apple Silicon `macos-26` runner. CodeQL's build tracer currently uses Rosetta, so CI prepares package metadata under `arch -x86_64` to match the traced build's manifest cache. This avoids relying on an Intel runner. App, ASAN and TSAN jobs remain native Apple Silicon builds. See [CodeQL platform requirements](https://codeql.github.com/docs/codeql-overview/system-requirements/). Before starting the tracer, it resolves the compiler path and package metadata with `make resolve`; this does not compile application targets. It then traces a fresh `make build`, without restoring compiled app objects from a cache; the other languages use build-free analysis. Results appear in GitHub code scanning.
 
 Dependabot checks pinned GitHub Actions daily. Dependency Review runs on pull requests.
+
+## Versioning and releases
+
+Use Conventional Commits for commits and squash PR titles. `feat:` produces a minor release, `fix:` and `perf:` produce patches, and `!` or a `BREAKING CHANGE:` footer produces a major release. Documentation-only commits do not produce a release. The initial feature release is `0.1.0`. Release tooling uses the semantic-release Conventional Commit analyser and release-note generator; Node 24 and npm are development/CI tools only.
+
+Run `npm ci --ignore-scripts`, `npm test` and `npm run release -- --dry-run` to check the release plan. The dry run reads public release history and local commits; it does not build, tag or publish. Locked dependencies are audited with `npm audit`.
+
+After the current main commit passes CI, unit tests, ASAN, TSAN, CodeQL and `release-tools`, the release workflow builds separate arm64 and x86_64 packages with their semantic version in the app bundle. It verifies each architecture, macOS 14 deployment target and app signature, then publishes archives, `SHA256SUMS`, release notes and a generated Homebrew formula. Assets are uploaded to a draft first. An existing published release is never overwritten. No version commit is pushed to protected main.
+
+The Homebrew tap checks for a new release hourly, verifies the released formula checksum and opens a single-formula bot PR. It explicitly runs the required Homebrew check and enables protected auto-merge. A review-only owner token, limited to the tap and pull-request writes, supplies its required owner review; branch protection is not relaxed. See the tap installation guide for the AWS_AUTO_APPROVE_REVIEW_TOKEN setup. The updater refuses other authors or extra changed files. A manual tap workflow dispatch can pick up a new release sooner.
+
+`bash Tools/package-release.sh 0.1.0` builds release packages locally without publishing them. Full Xcode is required here. Normal source bundles use development version `0.0.0` unless `APP_VERSION` is supplied. The Homebrew formula template is `Formula/aws-auto-approve.rb.in`; packaging inserts the version and archive checksums.

@@ -3,3 +3,4 @@ dist/
 coverage.xml
 .scannerwork/
 .DS_Store
+node_modules/
