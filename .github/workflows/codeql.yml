@@ -35,7 +35,7 @@ jobs:
         include:
           - name: Swift
             language: swift
-            runner: macos-26
+            runner: macos-26-intel
             build-mode: manual
           - name: JavaScript
             language: javascript-typescript
@@ -72,8 +72,8 @@ jobs:
         if: needs.paths.outputs.required == 'true' && matrix.language == 'swift'
         run: |
           printf 'SWIFT=%s\n' "$(xcrun --toolchain XcodeDefault --find swift)" >> "$GITHUB_ENV"
-          # The build tracer uses Rosetta; match its manifest-cache architecture.
-          arch -x86_64 make resolve
+          # Match the tracer's x86_64 architecture without Rosetta translation.
+          make resolve
       - name: Initialise CodeQL
         if: needs.paths.outputs.required == 'true'
         uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
