@@ -311,6 +311,26 @@ project_migration() {
     [[ $(grep -c '^aws-auto-approve-login' "$CASE_ROOT/project/.envrc") == 1 ]]
     git -C "$CASE_ROOT/project" check-ignore -q .envrc
     grep -Fq 'direnv allow .' "$TEST_CALLS"
+    cp "$CASE_ROOT/project/.envrc" "$WORK_DIR/first-envrc"
+    configure_project 0 <<<'y'
+    cmp "$CASE_ROOT/project/.envrc" "$WORK_DIR/first-envrc"
+    # Exported credentials from a previous interactive role must not override this profile.
+    export AWS_ACCESS_KEY_ID=fixture AWS_SECRET_ACCESS_KEY=fixture AWS_SESSION_TOKEN=fixture
+    # shellcheck disable=SC1091 # Source only the synthetic envrc built in this test.
+    source "$CASE_ROOT/project/.envrc"
+    [[ -z "${AWS_ACCESS_KEY_ID+x}" && -z "${AWS_SECRET_ACCESS_KEY+x}" && -z "${AWS_SESSION_TOKEN+x}" && "$AWS_PROFILE" == alpha ]]
+}
+
+# Owned blocks must not hide a second unmanaged authentication command added later.
+project_unmanaged_conflict() {
+    local status=0
+    PROJECTS=("$CASE_ROOT/project"); PROJECT_PROFILES=('alpha '); PROJECT_ACTIVE=(alpha)
+    configure_project 0 <<<'y'
+    printf 'assume other-role\n' >>"$CASE_ROOT/project/.envrc"
+    cp "$CASE_ROOT/project/.envrc" "$WORK_DIR/before-conflict"
+    (configure_project 0 <<<'y') || status=$?
+    [[ "$status" == 1 ]]
+    cmp "$CASE_ROOT/project/.envrc" "$WORK_DIR/before-conflict"
 }
 
 # Never change a tracked envrc into a private per-user setup.
@@ -427,7 +447,7 @@ trap 'rm -rf "$TEST_ROOT"' EXIT
 COUNT=0
 for test_case in detected_default broken_default explicit_mode project_arguments managed_backups reject_bad_block \
     preserve_cli_profile granted_profile reject_provider new_profile granted_browser starship_multiline \
-    starship_missing_module starship_failure shell_blocks ghostty_preserves_theme project_migration tracked_project \
+    starship_missing_module starship_failure shell_blocks ghostty_preserves_theme project_migration project_unmanaged_conflict tracked_project \
     signature_failure complete_setup complete_granted_setup failed_formula_test failed_dependency missing_granted_dependency \
     skip_login colour_overrides cli_contract dry_run; do
     export CASE_ROOT="$TEST_ROOT/$test_case"

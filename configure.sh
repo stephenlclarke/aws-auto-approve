@@ -601,15 +601,17 @@ configure_project() {
     local profiles=()
     directory="${PROJECTS[$index]}"; file="$directory/.envrc"
     read -r -a profiles <<<"${PROJECT_PROFILES[$index]}"
-    : >"$WORK_DIR/envrc-block"
-    for profile in "${profiles[@]}"; do
-        if [[ "$MODE" == with-granted ]]; then
-            printf 'GRANTED_ALIAS_CONFIGURED=true %q %q --exec true || return\n' "${GRANTED%/*}/assume" "$profile"
-        else
-            printf 'aws-auto-approve-login --if-needed %q || return\n' "$profile"
-        fi
-    done >>"$WORK_DIR/envrc-block"
-    printf 'export AWS_PROFILE=%q\n' "${PROJECT_ACTIVE[$index]}" >>"$WORK_DIR/envrc-block"
+    {
+        for profile in "${profiles[@]}"; do
+            if [[ "$MODE" == with-granted ]]; then
+                printf 'GRANTED_ALIAS_CONFIGURED=true %q %q --exec true || return\n' "${GRANTED%/*}/assume" "$profile"
+            else
+                printf 'aws-auto-approve-login --if-needed %q || return\n' "$profile"
+            fi
+        done
+        printf 'unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN AWS_SECURITY_TOKEN AWS_SESSION_EXPIRATION\n'
+        printf 'export AWS_PROFILE=%q\n' "${PROJECT_ACTIVE[$index]}"
+    } >"$WORK_DIR/envrc-block"
     # Migrate only the exact wrapper lines from the documented earlier setup.
     if [[ -f "$file" ]]; then
         awk -v profiles=" ${PROJECT_PROFILES[$index]}" '
@@ -621,7 +623,12 @@ configure_project() {
         : >"$WORK_DIR/project-base"
     fi
     # Other unmanaged authentication may select a different provider or role.
-    if grep -Eq '(assume|aws-auto-approve-login|AWS_PROFILE)' "$WORK_DIR/project-base" && ! grep -Fq '# >>> aws-auto-approve project >>>' "$WORK_DIR/project-base"; then
+    awk '
+        $0=="# >>> aws-auto-approve project >>>" { inside=1; next }
+        $0=="# <<< aws-auto-approve project <<<" { inside=0; next }
+        !inside && $0 !~ /^[[:space:]]*#/ { print }
+    ' "$WORK_DIR/project-base" >"$WORK_DIR/project-unmanaged"
+    if grep -Eq '(assume|aws-auto-approve-login|AWS_PROFILE)' "$WORK_DIR/project-unmanaged"; then
         error "Existing unmanaged AWS setup in $file. Move those authentication lines into the managed block or remove them after review, then re-run."
     fi
     if git -C "$directory" rev-parse --git-dir >/dev/null 2>&1; then
