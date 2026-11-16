@@ -6,13 +6,20 @@ if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
     exit 0
 fi
 if [[ $# -ne 0 ]]; then exit 2; fi
+APP_VERSION="${APP_VERSION:-0.0.0}"
+[[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf 'APP_VERSION must be a stable semantic version.\n' >&2; exit 2; }
+if [[ -n "${BUILD_ARCH:-}" ]]; then
+    BIN_DIR="$("${SWIFT:-$(xcrun --toolchain XcodeDefault --find swift)}" build --disable-sandbox -c release --arch "$BUILD_ARCH" --show-bin-path)"
+else
+    BIN_DIR=.build/release
+fi
 bash Tools/build-icon.sh
 APP='dist/AWS Auto Approve.app'
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/AppIcon.icns "$APP/Contents/Resources/"
-cp .build/release/aws-auto-approve "$APP/Contents/MacOS/"
-cp -R .build/release/AWSAutoApprove_ApprovalCore.bundle "$APP/Contents/Resources/"
+cp "$BIN_DIR/aws-auto-approve" "$APP/Contents/MacOS/"
+cp -R "$BIN_DIR/AWSAutoApprove_ApprovalCore.bundle" "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -29,7 +36,11 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$APP/Contents/Info.plist"
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"
-"$APP/Contents/MacOS/aws-auto-approve" --help >/dev/null
+if [[ "${BUILD_ARCH:-$(uname -m)}" == "$(uname -m)" ]]; then
+    "$APP/Contents/MacOS/aws-auto-approve" --help >/dev/null
+fi
 printf 'Built %s (local ad-hoc signature).\n' "$APP"

@@ -9,7 +9,7 @@
 # DETAILS:
 #   Detects Granted and offers it as the default when it works. Installs
 #   missing dependencies, backs up changed files and preserves other settings.
-#   Apple sign-in, administrator approval, Xcode licences and MFA stay manual.
+#   Administrator approval and AWS sign-in/MFA stay manual. No Xcode is needed.
 #   Run without options for guided setup. Re-running updates managed blocks.
 #
 # OPTIONS:
@@ -252,7 +252,7 @@ show_plan() {
     local index
     info "Authentication route: $MODE"
     info "Homebrew: ${BREW:-install from brew.sh}"
-    info 'Dependencies: full Xcode, AWS CLI v2, zsh, Ghostty, Starship and direnv.'
+    info 'Dependencies: AWS CLI v2, zsh, Ghostty, Starship and direnv. Install the prebuilt app release; no Xcode is needed.'
     info 'Existing themes, fonts, account default shell and unrelated AWS profiles are preserved.'
     if [[ "$MODE" == with-granted ]]; then info 'Install or reuse Granted and configure its SSO browser.'; fi
     for ((index=0; index<${#PROJECTS[@]}; index++)); do
@@ -352,27 +352,11 @@ ensure_homebrew() {
     export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
 }
 
-# Install full Xcode if needed; leave Apple account and licence decisions to the user.
-ensure_xcode() {
-    local selected version
-    selected="$(xcode-select -p 2>/dev/null || true)"
-    if [[ "$selected" != *.app/Contents/Developer ]]; then
-        if [[ ! -d /Applications/Xcode.app ]]; then
-            install_formula mas
-            info 'Installing Xcode through the Mac App Store. Apple sign-in or administrator approval may be required.'
-            "$BREW_PREFIX/bin/mas" install 497799835 || error 'Xcode installation needs attention in the App Store. Complete it, then re-run.'
-        fi
-        sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer || error 'Could not select full Xcode.'
-    fi
-    version="$(xcrun --toolchain XcodeDefault swift --version 2>/dev/null || true)"
-    [[ "$version" =~ Swift[[:space:]]version[[:space:]]([0-9]+) ]] || error 'Open Xcode, complete its licence and first launch, then re-run.'
-    ((BASH_REMATCH[1] >= 6)) || error 'Xcode 16 / Swift 6 or later is required. Update Xcode, then re-run.'
-}
-
 # Install the selected dependencies and refresh the helper from the public tap.
 install_dependencies() {
-    local formula owner
+    local formula owner installed
     ensure_homebrew
+    "$BREW" update --quiet || error 'Could not refresh Homebrew release metadata.'
     for formula in awscli zsh starship direnv; do install_formula "$formula"; done
     if [[ ! -d /Applications/Ghostty.app && ! -d "$HOME/Applications/Ghostty.app" ]] && ! command -v ghostty >/dev/null 2>&1; then
         "$BREW" install --cask ghostty || error 'Could not install Ghostty.'
@@ -390,12 +374,16 @@ install_dependencies() {
         GRANTED="$(command -v granted)"
         [[ -x "${GRANTED%/*}/assume" ]] || error 'Granted is missing its companion assume executable. Repair that installation first.'
     fi
-    ensure_xcode
     "$BREW" tap stephenlclarke/tap || error 'Could not add the AWS Auto Approve tap.'
     if "$BREW" list --versions stephenlclarke/tap/aws-auto-approve >/dev/null 2>&1; then
-        "$BREW" upgrade --fetch-HEAD stephenlclarke/tap/aws-auto-approve || error 'AWS Auto Approve upgrade failed.'
+        installed="$("$BREW" list --versions stephenlclarke/tap/aws-auto-approve)"
+        if [[ "$installed" == *HEAD-* ]]; then
+            "$BREW" reinstall stephenlclarke/tap/aws-auto-approve || error 'Could not migrate the source installation to the prebuilt release.'
+        else
+            "$BREW" upgrade stephenlclarke/tap/aws-auto-approve || error 'AWS Auto Approve upgrade failed.'
+        fi
     else
-        "$BREW" install --HEAD stephenlclarke/tap/aws-auto-approve || error 'AWS Auto Approve installation failed.'
+        "$BREW" install stephenlclarke/tap/aws-auto-approve || error 'AWS Auto Approve installation failed.'
     fi
 }
 

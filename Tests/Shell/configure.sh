@@ -18,7 +18,9 @@ fixture() {
 printf 'brew %s\n' "$*" >>"$TEST_CALLS"
 case "$1" in
     --prefix) printf '%s/prefix\n' "$CASE_ROOT" ;;
-    list) [[ "${TEST_MISSING:-}" != "${*: -1}" ]] ;;
+    list)
+        if [[ "${TEST_HEAD_INSTALLED:-0}" == 1 && "${*: -1}" == stephenlclarke/tap/aws-auto-approve ]]; then printf 'aws-auto-approve HEAD-fixture\n'; fi
+        [[ "${TEST_MISSING:-}" != "${*: -1}" ]] ;;
     test) exit "${TEST_BREW_FAILURE:-0}" ;;
     install) exit "${TEST_INSTALL_FAILURE:-0}" ;;
 esac
@@ -420,6 +422,14 @@ missing_granted_dependency() {
     grep -Fq 'brew install fwdcloudsec/granted/granted' "$TEST_CALLS"
 }
 
+# Existing HEAD installs migrate to the stable package instead of following source.
+migrate_head_installation() {
+    export TEST_HEAD_INSTALLED=1
+    install_dependencies
+    grep -Fq 'brew reinstall stephenlclarke/tap/aws-auto-approve' "$TEST_CALLS"
+    if grep -Fq -- '--HEAD' "$TEST_CALLS"; then return 1; fi
+}
+
 # Argument errors and help must not install anything or inspect authentication state.
 cli_contract() {
     local status=0
@@ -449,7 +459,7 @@ for test_case in detected_default broken_default explicit_mode project_arguments
     preserve_cli_profile granted_profile reject_provider new_profile granted_browser starship_multiline \
     starship_missing_module starship_failure shell_blocks ghostty_preserves_theme project_migration project_unmanaged_conflict tracked_project \
     signature_failure complete_setup complete_granted_setup failed_formula_test failed_dependency missing_granted_dependency \
-    skip_login colour_overrides cli_contract dry_run; do
+    migrate_head_installation skip_login colour_overrides cli_contract dry_run; do
     export CASE_ROOT="$TEST_ROOT/$test_case"
     mkdir -p "$CASE_ROOT"
     if ! bash "${BASH_SOURCE[0]}" --case "$test_case" >"$CASE_ROOT/output" 2>&1; then

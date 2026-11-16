@@ -99,3 +99,15 @@ The named PR checks remain available for branch protection. Each dependent job v
 CodeQL scans Swift, the embedded JavaScript, the Homebrew Ruby formula and GitHub Actions workflows on main pushes, pull requests and a weekly schedule. Swift analysis pins Xcode 26.3 on the Apple Silicon `macos-26` runner. CodeQL's build tracer currently uses Rosetta, so CI prepares package metadata under `arch -x86_64` to match the traced build's manifest cache. This avoids relying on an Intel runner. App, ASAN and TSAN jobs remain native Apple Silicon builds. See [CodeQL platform requirements](https://codeql.github.com/docs/codeql-overview/system-requirements/). Before starting the tracer, it resolves the compiler path and package metadata with `make resolve`; this does not compile application targets. It then traces a fresh `make build`, without restoring compiled app objects from a cache; the other languages use build-free analysis. Results appear in GitHub code scanning.
 
 Dependabot checks pinned GitHub Actions daily. Dependency Review runs on pull requests.
+
+## Versioning and releases
+
+Use Conventional Commits for commits and squash PR titles. `feat:` produces a minor release, `fix:` and `perf:` produce patches, and `!` or a `BREAKING CHANGE:` footer produces a major release. Documentation-only commits do not produce a release. The initial feature release is `0.1.0`. Release tooling uses the semantic-release Conventional Commit analyser and release-note generator; Node 24 and npm are development/CI tools only.
+
+Run `npm ci --ignore-scripts`, `npm test` and `npm run release -- --dry-run` to check the release plan. The dry run reads public release history and local commits; it does not build, tag or publish. Locked dependencies are audited with `npm audit`.
+
+After the current main commit passes CI, unit tests, ASAN, TSAN, CodeQL and `release-tools`, the release workflow builds separate arm64 and x86_64 packages with their semantic version in the app bundle. It verifies each architecture, macOS 14 deployment target and app signature, then publishes archives, `SHA256SUMS`, release notes and a generated Homebrew formula. Assets are uploaded to a draft first. An existing published release is never overwritten. No version commit is pushed to protected main.
+
+The Homebrew tap checks for a new release hourly, verifies the released formula checksum and opens a single-formula bot PR. It explicitly runs the required Homebrew check and enables protected auto-merge. A review-only owner token, limited to the tap and pull-request writes, supplies its required owner review; branch protection is not relaxed. See the tap installation guide for the AWS_AUTO_APPROVE_REVIEW_TOKEN setup. The updater refuses other authors or extra changed files. A manual tap workflow dispatch can pick up a new release sooner.
+
+`bash Tools/package-release.sh 0.1.0` builds release packages locally without publishing them. Full Xcode is required here. Normal source bundles use development version `0.0.0` unless `APP_VERSION` is supplied. The Homebrew formula template is `Formula/aws-auto-approve.rb.in`; packaging inserts the version and archive checksums.

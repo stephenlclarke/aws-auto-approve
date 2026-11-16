@@ -8,7 +8,7 @@ AWS Auto Approve uses macOS WebKit to approve a locally initiated AWS SSO reques
 ## Requirements
 
 - macOS Sonoma 14 or later.
-- Full Xcode 16 or later for the current source-based Homebrew formula. See [build prerequisites](BUILD.md#requirements).
+- Apple Silicon or Intel Mac. Homebrew installs the matching prebuilt release; Xcode is needed only for [source builds](BUILD.md#requirements).
 - Homebrew and AWS CLI v2.
 - An AWS IAM Identity Center profile that your organisation permits you to use.
 
@@ -37,7 +37,7 @@ bash "$aws_setup_dir/configure.sh"
 
 The script checks for a working Granted installation and offers it as the default. Otherwise, it recommends AWS CLI without Granted. Press Enter to confirm, choose `g` for Granted or `a` for AWS CLI. You can also select a route explicitly with `--with-granted` or `--without-granted`.
 
-It installs missing Homebrew dependencies, including AWS CLI v2, zsh, Ghostty, Starship, direnv and Granted when selected, then installs or upgrades AWS Auto Approve. If full Xcode is missing, it attempts installation through the Mac App Store using `mas`. Apple sign-in, administrator approval, licence acceptance and AWS login/MFA can need your input; complete them and re-run if setup stops. The account's default shell, terminal appearance and unrelated AWS profiles remain unchanged.
+It installs missing Homebrew dependencies, including AWS CLI v2, zsh, Ghostty, Starship, direnv and Granted when selected, then installs or upgrades the prebuilt AWS Auto Approve release. It does not download full Xcode. Homebrew can need its normal Command Line Tools or administrator approval; AWS sign-in and MFA can need your input. The account's default shell, terminal appearance and unrelated AWS profiles remain unchanged.
 
 You can supply projects and profiles instead of entering them at prompts:
 
@@ -81,8 +81,7 @@ the selected --with-granted or --without-granted option and the grouped
 route's missing dependencies. Use the script's existing backups and managed
 blocks rather than replacing my dot-files or building a second installer.
 
-Let me complete Apple sign-in, administrator approval, licences, credentials
-and DUO/MFA. Resume after a fixable prerequisite is ready. Never enable shell
+Let me complete administrator approval, credentials and DUO/MFA. Resume after a fixable prerequisite is ready. Never enable shell
 tracing, dump my environment, print credentials or record authentication
 URLs/codes. Preserve unrelated work and existing terminal appearance.
 
@@ -103,13 +102,13 @@ for skipped checks or automatically approve MFA.
 
 ```sh
 brew tap stephenlclarke/tap
-brew install --HEAD stephenlclarke/tap/aws-auto-approve
+brew install stephenlclarke/tap/aws-auto-approve
 brew test stephenlclarke/tap/aws-auto-approve
 aws-auto-approve --help
 aws-auto-approve-login --help
 ```
 
-If Homebrew asks you to trust this tap, review its [formula](https://github.com/stephenlclarke/homebrew-tap/blob/main/Formula/aws-auto-approve.rb) before approving it. The formula builds the native app and installs two commands plus zsh completions. It does not change shell files, AWS profiles or directory permissions. The app has a local ad-hoc signature. A notarised binary release is not yet available.
+If Homebrew asks you to trust this tap, review its [formula](https://github.com/stephenlclarke/homebrew-tap/blob/main/Formula/aws-auto-approve.rb) before approving it. The formula installs the matching versioned Apple Silicon or Intel app package, verified by SHA-256, plus two commands and zsh completions. It does not change shell files, AWS profiles or directory permissions. The prebuilt app has an ad-hoc signature; it is not Developer ID signed or notarised.
 
 Use the fully qualified tap name in install and upgrade commands. Installing a loose local formula file is not the supported route.
 
@@ -253,7 +252,7 @@ Do not save real authentication URLs or codes in scripts, command history, issue
 
 ```sh
 brew update
-brew upgrade --fetch-HEAD stephenlclarke/tap/aws-auto-approve
+brew upgrade stephenlclarke/tap/aws-auto-approve
 brew test stephenlclarke/tap/aws-auto-approve
 ```
 
@@ -264,7 +263,7 @@ Keep integrations pointed at Homebrew's normal commands, not a versioned Cellar 
 | Symptom | Check |
 | --- | --- |
 | Command not found | Check Homebrew shell setup in a new terminal and run `rehash`. |
-| Xcode build failure | Check `xcode-select -p`, Xcode version and licence acceptance. |
+| Old source installation | Run `brew update` and `brew reinstall stephenlclarke/tap/aws-auto-approve` to switch to the released package. |
 | Wrong Microsoft account | Select your organisation's account. Start a fresh request if the error page offers no account switch. |
 | No approval URL received | Check the AWS profile and CLI version. The wrapper explicitly selects device-code mode. |
 | Credentials still fail | Run `aws sts get-caller-identity --profile work` and check account/role permissions. |

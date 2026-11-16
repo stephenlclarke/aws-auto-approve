@@ -1,4 +1,5 @@
 SWIFT ?= $(shell xcrun --toolchain XcodeDefault --find swift)
+RELEASE_ARCH_FLAGS = $(if $(BUILD_ARCH),--arch $(BUILD_ARCH),)
 export CLANG_MODULE_CACHE_PATH := $(CURDIR)/.build/module-cache
 export SWIFTPM_MODULECACHE_OVERRIDE := $(CURDIR)/.build/module-cache
 
@@ -9,7 +10,7 @@ resolve:
 build:
 	$(SWIFT) build --disable-sandbox -Xswiftc -warnings-as-errors
 build-release:
-	$(SWIFT) build --disable-sandbox -c release -Xswiftc -warnings-as-errors
+	$(SWIFT) build --disable-sandbox -c release $(RELEASE_ARCH_FLAGS) -Xswiftc -warnings-as-errors
 unit-test:
 	bash Tests/Shell/change-scope.sh
 	bash Tests/Shell/login.sh
@@ -40,8 +41,8 @@ clean:
 lint:
 	markdownlint '*.md' 'docs/**/*.md'
 	actionlint
-	bash -n configure.sh Tools/bundle.sh Tools/build-icon.sh Tools/install.sh Integration/aws-auto-approve-login Tests/Shell/login.sh Tests/Shell/change-scope.sh Tests/Shell/configure.sh .github/actions/change-scope/check.sh
-	shellcheck -x configure.sh Tests/Shell/configure.sh
+	bash -n configure.sh Tools/bundle.sh Tools/build-icon.sh Tools/install.sh Tools/package-release.sh Tools/release-ready.sh Tools/check-commit.sh Integration/aws-auto-approve-login Tests/Shell/login.sh Tests/Shell/change-scope.sh Tests/Shell/configure.sh .github/actions/change-scope/check.sh
+	shellcheck -x configure.sh Tests/Shell/configure.sh Tools/package-release.sh Tools/release-ready.sh Tools/check-commit.sh
 	zsh -n Completions/*
 sonar:
 	sonar-scanner -Dsonar.projectVersion=$$(git rev-parse HEAD)
