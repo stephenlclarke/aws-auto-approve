@@ -38,9 +38,19 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 PLIST
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $APP_VERSION" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $APP_VERSION" "$APP/Contents/Info.plist"
-codesign --force --deep --sign - "$APP"
+signing_identity="${CODESIGN_IDENTITY:--}"
+signing_args=(--force --sign "$signing_identity")
+if [[ "$signing_identity" != - ]]; then
+    signing_args+=(--options runtime --timestamp)
+    if [[ -n "${CODESIGN_KEYCHAIN:-}" ]]; then signing_args+=(--keychain "$CODESIGN_KEYCHAIN"); fi
+fi
+codesign "${signing_args[@]}" "$APP"
 codesign --verify --deep --strict "$APP"
 if [[ "${BUILD_ARCH:-$(uname -m)}" == "$(uname -m)" ]]; then
     "$APP/Contents/MacOS/aws-auto-approve" --help >/dev/null
 fi
-printf 'Built %s (local ad-hoc signature).\n' "$APP"
+if [[ "$signing_identity" == - ]]; then
+    printf 'Built %s (local ad-hoc signature).\n' "$APP"
+else
+    printf 'Built %s (Developer ID signature).\n' "$APP"
+fi

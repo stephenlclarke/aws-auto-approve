@@ -12,11 +12,13 @@ build:
 build-release:
 	$(SWIFT) build --disable-sandbox -c release $(RELEASE_ARCH_FLAGS) -Xswiftc -warnings-as-errors
 unit-test:
+	bash Tests/Shell/notarise.sh
 	bash Tests/Shell/change-scope.sh
 	bash Tests/Shell/login.sh
 	bash Tests/Shell/configure.sh
 	$(SWIFT) test --disable-sandbox --filter ApprovalCoreTests.ApprovalCoreTests
 test:
+	bash Tests/Shell/notarise.sh
 	bash Tests/Shell/change-scope.sh
 	bash Tests/Shell/login.sh
 	bash Tests/Shell/configure.sh
@@ -41,8 +43,8 @@ clean:
 lint:
 	markdownlint '*.md' 'docs/**/*.md'
 	actionlint
-	bash -n configure.sh Tools/bundle.sh Tools/build-icon.sh Tools/install.sh Tools/package-release.sh Tools/release-ready.sh Tools/check-commit.sh Integration/aws-auto-approve-login Tests/Shell/login.sh Tests/Shell/change-scope.sh Tests/Shell/configure.sh .github/actions/change-scope/check.sh
-	shellcheck -x configure.sh Tests/Shell/configure.sh Tools/package-release.sh Tools/release-ready.sh Tools/check-commit.sh
+	bash -n configure.sh Tools/bundle.sh Tools/build-icon.sh Tools/install.sh Tools/package-release.sh Tools/notarise.sh Tools/ci-signing.sh Tools/release-ready.sh Tools/check-commit.sh Integration/aws-auto-approve-login Tests/Shell/login.sh Tests/Shell/change-scope.sh Tests/Shell/configure.sh Tests/Shell/notarise.sh .github/actions/change-scope/check.sh
+	shellcheck -x configure.sh Tests/Shell/configure.sh Tests/Shell/notarise.sh Tools/package-release.sh Tools/notarise.sh Tools/ci-signing.sh Tools/release-ready.sh Tools/check-commit.sh
 	zsh -n Completions/*
 sonar:
 	sonar-scanner -Dsonar.projectVersion=$$(git rev-parse HEAD)

@@ -106,8 +106,26 @@ Use Conventional Commits for commits and squash PR titles. `feat:` produces a mi
 
 Run `npm ci --ignore-scripts`, `npm test` and `npm run release -- --dry-run` to check the release plan. The dry run reads public release history and local commits; it does not build, tag or publish. Locked dependencies are audited with `npm audit`.
 
-After the current main commit passes CI, unit tests, ASAN, TSAN, CodeQL and `release-tools`, the release workflow builds separate arm64 and x86_64 packages with their semantic version in the app bundle. It verifies each architecture, macOS 14 deployment target and app signature, then publishes archives, `SHA256SUMS`, release notes and a generated Homebrew formula. Assets are uploaded to a draft first. An existing published release is never overwritten. No version commit is pushed to protected main.
+After the current main commit passes CI, unit tests, ASAN, TSAN, CodeQL and `release-tools`, the release workflow builds separate arm64 and x86_64 packages with their semantic version in the app bundle. From 0.2.0, each app needs a Developer ID Application signature, Hardened Runtime, a secure timestamp and the expected signing team. Packaging submits each app to Apple, requires an accepted result without notarisation errors, staples its ticket and verifies the signature, ticket and Gatekeeper assessment. It extracts each finished archive and verifies the ticket again before publishing archives, `SHA256SUMS`, release notes and the generated Homebrew formula. Missing credentials, rejected submissions or verification failures stop publication. Assets are uploaded to a draft first. An existing published release is never overwritten. No version commit is pushed to protected main.
 
 The Homebrew tap checks for a new release hourly, verifies the released formula checksum and opens a single-formula bot PR. It explicitly runs the required Homebrew check and enables protected auto-merge. A review-only owner token, limited to the tap and pull-request writes, supplies its required owner review; branch protection is not relaxed. See the tap installation guide for the AWS_AUTO_APPROVE_REVIEW_TOKEN setup. The updater refuses other authors or extra changed files. A manual tap workflow dispatch can pick up a new release sooner.
 
-`bash Tools/package-release.sh 0.1.0` builds release packages locally without publishing them. Full Xcode is required here. Normal source bundles use development version `0.0.0` unless `APP_VERSION` is supplied. The Homebrew formula template is `Formula/aws-auto-approve.rb.in`; packaging inserts the version and archive checksums.
+`bash Tools/package-release.sh VERSION` builds and notarises release packages locally without publishing them. Full Xcode, a Developer ID Application signing identity and notarisation credentials are required. Normal source bundles use development version `0.0.0` and ad-hoc signing unless `APP_VERSION` and `CODESIGN_IDENTITY` are supplied. The Homebrew formula template is `Formula/aws-auto-approve.rb.in`; packaging inserts the version and archive checksums.
+
+### Release signing credentials
+
+Keep a private backup of the Developer ID Application certificate and its matching private key. Downloading the public `.cer` from Apple does not restore a missing private key. Do not revoke a working certificate used by other applications.
+
+The protected release job uses these Actions secrets in the repository's `release-signing` environment. Restrict that environment's deployment branches to protected branches; `main` is the protected release branch. No manual environment approval is required for automatic releases.
+
+| Secret | Value |
+| --- | --- |
+| `MACOS_CERTIFICATE_P12` | Base64 encoding of the password-protected signing identity export |
+| `MACOS_CERTIFICATE_PASSWORD` | Password protecting that export |
+| `APPLE_NOTARY_KEY_P8` | Private contents of an App Store Connect team API key |
+
+Set repository variables `APPLE_TEAM_ID`, `APPLE_NOTARY_KEY_ID` and `APPLE_NOTARY_ISSUER_ID` to the corresponding identifiers. Use a team API key authorised to submit notarisation requests. Supply secrets privately through `gh secret set --env release-signing` or GitHub environment settings; never put private keys, passwords or decoded exports in source files or logs.
+
+The job imports one Developer ID identity into an isolated temporary Keychain. It selects that Keychain explicitly for signing, preserves the runner's existing search list and removes the temporary Keychain and private files in an always-run cleanup step. Pull-request workflows receive no signing secrets.
+
+For local release packaging, set `CODESIGN_IDENTITY`, `APPLE_TEAM_ID` and either `NOTARY_KEYCHAIN_PROFILE` (a profile previously stored by `xcrun notarytool store-credentials`) or `APPLE_NOTARY_KEY_PATH`, `APPLE_NOTARY_KEY_ID` and `APPLE_NOTARY_ISSUER_ID`. `bash Tools/notarise.sh --check` checks configuration without uploading anything. Only Apple's accepted response, a validated ticket and the final signature checks establish notarisation.

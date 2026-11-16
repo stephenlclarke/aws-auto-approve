@@ -40,6 +40,7 @@ jobs:
     needs: ready
     if: needs.ready.outputs.ready == 'true'
     runs-on: macos-26
+    environment: release-signing
     permissions:
       contents: write
       checks: read
@@ -57,7 +58,19 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Select the tested Xcode toolchain
         run: printf '%s\n' 'DEVELOPER_DIR=/Applications/Xcode_26.3.app/Contents/Developer' >> "$GITHUB_ENV"
+      - name: Import isolated release signing credentials
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_KEY_P8: ${{ secrets.APPLE_NOTARY_KEY_P8 }}
+        run: bash Tools/ci-signing.sh setup
       - name: Version, package and publish
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_NOTARY_KEY_ID: ${{ vars.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ vars.APPLE_NOTARY_ISSUER_ID }}
         run: npm run release
+      - name: Remove temporary signing credentials
+        if: always()
+        run: bash Tools/ci-signing.sh cleanup

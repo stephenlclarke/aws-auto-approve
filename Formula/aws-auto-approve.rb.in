@@ -27,6 +27,9 @@ class AwsAutoApprove < Formula
   end
 
   test do
+    app = libexec/"AWS Auto Approve.app"
+    system "/usr/bin/codesign", "--verify", "--deep", "--strict", app
+    system "/usr/sbin/spctl", "--assess", "--type", "execute", app
     assert_match "Granted is not used", shell_output("#{bin}/aws-auto-approve-login --help")
     assert_match "Usage: aws-auto-approve", shell_output("#{bin}/aws-auto-approve --help")
   end
