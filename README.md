@@ -43,7 +43,7 @@ aws-auto-approve-login your-profile
 
 Use `aws-auto-approve-login --if-needed your-profile` to reuse valid credentials before starting a new sign-in. Each successful access check prints the profile name, in green when used in a terminal.
 
-- [INSTALL.md](docs/INSTALL.md): Homebrew installation, AWS CLI or Granted, zsh, direnv, upgrades and removal.
+- [INSTALL.md](docs/INSTALL.md): automatic setup with `configure.sh`, Homebrew, AWS CLI or Granted, zsh and direnv.
 - [BUILD.md](docs/BUILD.md): build from source, run tests and create a local app bundle.
 - [SECURITY.md](SECURITY.md): approval boundaries and reporting vulnerabilities.
 

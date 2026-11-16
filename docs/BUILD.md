@@ -68,6 +68,7 @@ Avoid keeping a development command ahead of the Homebrew command in `PATH`. Che
 | `make test-tsan` | Full native tests with Thread Sanitizer in a separate build directory |
 | `make build` | Debug build, with compiler warnings treated as errors |
 | `make build-release` | Release executable |
+| `make configure ARGS='--dry-run'` | Preview the guided Mac setup without installing or changing configuration |
 | `make test` | Shell wrapper checks and native tests with Swift coverage |
 | `make unit-test` | Shell wrapper checks and isolated core tests |
 | `make coverage` | Full tests and `coverage.xml` for SonarQube |
@@ -78,7 +79,9 @@ Avoid keeping a development command ahead of the Homebrew command in `PATH`. Che
 
 Native WebKit tests need a macOS user session and permission to start WebKit processes. They check real DOM button clicks, code matching, input streaming, timeouts, cancellation and manual fallback. The shell checks use isolated command stubs and temporary Git histories to verify workflow path filtering. Window tests verify that automatic redirects do not create a window and that stable manual controls do. ASAN and TSAN each run the full native suite in their own build directory; the command-line tests use the executable from that same directory. Automated tests do not authenticate to AWS or use real credentials.
 
-`make lint` needs `markdownlint-cli` and `actionlint`. `make sonar` needs `sonar-scanner` and a valid `SONAR_TOKEN`. Install these development tools through your normal package manager. Keep tokens out of shell history and source control.
+`make lint` needs `markdownlint-cli`, `actionlint` and `shellcheck`. `make sonar` needs `sonar-scanner` and a valid `SONAR_TOKEN`. Install these development tools through your normal package manager. Keep tokens out of shell history and source control.
+
+`Tests/Shell/configure.sh` runs the configure script and its file-editing functions in temporary homes, with installers and authentication commands replaced by stubs. It checks route defaults, profile conversion, shared-session preservation, managed blocks, backups, symlinks, project integration and failure handling. It does not install packages or use live credentials. The tests run through `make test` and `make unit-test`.
 
 ## CI
 
