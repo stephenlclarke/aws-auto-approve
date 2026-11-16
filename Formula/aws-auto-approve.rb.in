@@ -15,7 +15,9 @@ class AwsAutoApprove < Formula
   end
 
   depends_on :macos
-  depends_on macos: :sonoma
+  on_macos do
+    depends_on macos: :sonoma
+  end
   depends_on "awscli"
 
   skip_clean "libexec/AWS Auto Approve.app"
