@@ -27,9 +27,28 @@ usage() {
     printf 'Report each verified profile on stderr. Set SCRIPT_COLOUR=off or NO_COLOR to disable colour.\n'
 }
 
+# Keep macOS bundle discovery inside the app when PATH exposes a symlink.
+resolve_helper() {
+    local helper directory target
+    helper="$(command -v aws-auto-approve)" || return 1
+    while :; do
+        directory="$(CDPATH='' cd -P -- "$(dirname "$helper")" && pwd -P)" || return 1
+        helper="$directory/$(basename "$helper")"
+        if [[ ! -L "$helper" ]]; then break; fi
+        target="$(readlink "$helper")" || return 1
+        case "$target" in
+            /*) helper="$target" ;;
+            *) helper="$directory/$target" ;;
+        esac
+    done
+    [[ -f "$helper" && -x "$helper" ]] || return 1
+    printf '%s\n' "$helper"
+}
+
 # Own the CLI process so cancellation can stop its pending device-code request.
 run_login() (
-    local profile="$1" work aws_pid='' helper_result=0 cli_result=0
+    local profile="$1" work helper aws_pid='' helper_result=0 cli_result=0
+    helper="$(resolve_helper)" || { printf 'Could not resolve the native approval helper.\n' >&2; return 1; }
     work="$(mktemp -d)" || return 1
 
     # Remove only this invocation's private FIFO and stop its own child process.
@@ -49,7 +68,7 @@ run_login() (
     PYTHONUNBUFFERED=1 AWS_PAGER='' aws sso login --use-device-code --no-browser --profile "$profile" >"$work/authentication" 2>&1 &
     aws_pid=$!
     exec 3<"$work/authentication" || return 1
-    aws-auto-approve --stdin <&3 || helper_result=$?
+    "$helper" --stdin <&3 || helper_result=$?
     if [[ "$helper_result" -ne 0 ]]; then return "$helper_result"; fi
     # Drain the CLI's final message without closing its output pipe too early.
     cat <&3 >/dev/null || return 1
