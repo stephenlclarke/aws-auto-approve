@@ -19,6 +19,7 @@ exit "${TEST_LOGIN_RESULT:-0}"
 STUB
 cat > "$TEST_ROOT/bin/aws-auto-approve" <<'STUB'
 #!/bin/bash
+printf '%s\n' "$0" > "$AWS_AUTO_TEST_DIR/helper-path"
 if [[ ${TEST_HELPER_FAST_FAIL:-0} == 1 ]]; then exit 8; fi
 cat >/dev/null
 exit "${TEST_HELPER_RESULT:-0}"
@@ -53,6 +54,22 @@ check_status
 [[ "$(cat "$TEST_ROOT/calls")" == sts ]]
 check 0 fixture
 check_status
+# The native app must receive its canonical executable path for bundle lookup.
+APP_BIN="$TEST_ROOT/Native App.app/Contents/MacOS"
+mkdir -p "$APP_BIN" "$TEST_ROOT/links"
+mv "$TEST_ROOT/bin/aws-auto-approve" "$APP_BIN/aws-auto-approve"
+ln -s '../links/entry' "$TEST_ROOT/bin/aws-auto-approve"
+ln -s '../Native App.app/Contents/MacOS/aws-auto-approve' "$TEST_ROOT/links/entry"
+check 0 fixture
+check_status
+[[ "$(cat "$TEST_ROOT/helper-path")" == "$(cd "$APP_BIN" && pwd -P)/aws-auto-approve" ]]
+rm "$TEST_ROOT/links/entry"
+ln -s "$APP_BIN/aws-auto-approve" "$TEST_ROOT/links/entry"
+check 0 fixture
+check_status
+[[ "$(cat "$TEST_ROOT/helper-path")" == "$(cd "$APP_BIN" && pwd -P)/aws-auto-approve" ]]
+rm "$TEST_ROOT/bin/aws-auto-approve" "$TEST_ROOT/links/entry"
+mv "$APP_BIN/aws-auto-approve" "$TEST_ROOT/bin/aws-auto-approve"
 export TEST_LOGIN_RESULT=7
 check 1 fixture
 check_no_status
@@ -84,4 +101,4 @@ SCRIPT_COLOUR=off script -q "$TEST_ROOT/terminal" bash "$ROOT/Integration/aws-au
 [[ "$(cat "$TEST_ROOT/terminal")" != *$'\033['* ]]
 NO_COLOR=1 script -q "$TEST_ROOT/terminal" bash "$ROOT/Integration/aws-auto-approve-login" --if-needed fixture >/dev/null
 [[ "$(cat "$TEST_ROOT/terminal")" != *$'\033['* ]]
-printf 'AWS CLI integration: 12 checks passed.\n'
+printf 'AWS CLI integration: 14 checks passed.\n'
